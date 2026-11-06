@@ -1,36 +1,37 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ABAPilot
 
-## Getting Started
+AI assistant for SAP ABAP support consultants. Paste a ticket (and optionally the related code / short dump) and get:
 
-First, run the development server:
+- Summary, classification, complexity and effort estimate
+- Technical analysis and clarifying questions
+- Affected objects
+- ABAP code changes wrapped in **your team's change-tag format**
+- Test cases (positive / negative / regression)
+- Risks and a ready-to-paste change log
 
+## Stack
+Next.js (App Router) · TypeScript · Tailwind CSS · Vercel AI SDK · Anthropic Claude
+
+## Run locally
 ```bash
+cp .env.example .env.local   # add ANTHROPIC_API_KEY
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
+Open http://localhost:3000/app and click **Load example**.
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Deploy to Vercel
+1. Import this GitHub repo at vercel.com/new
+2. Add the `ANTHROPIC_API_KEY` environment variable
+3. Deploy. Each PR gets its own preview URL.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Roadmap
+- [ ] Supabase Auth + Postgres (Drizzle): accounts, ticket history, shared team conventions
+- [ ] Stripe subscriptions and usage limits for the Free plan
+- [ ] Export to Word / technical spec template
+- [ ] Follow-up chat on an analysis ("change the approach to a BAdI")
+- [ ] Self-hosted / on-prem option for clients with strict data rules
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Privacy
+Tickets and code are sent to the Anthropic API only for the request and are not stored by the app.
+Remind users to strip client names and personal data before pasting.
