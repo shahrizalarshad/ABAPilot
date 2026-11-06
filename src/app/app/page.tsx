@@ -11,7 +11,10 @@ async function WorkspaceLoader() {
 
   return (
     <>
-      <Workspace systemRelease={conventions.systemRelease} />
+      <Workspace
+        systemRelease={conventions.systemRelease}
+        authorId={conventions.authorId}
+      />
     </>
   );
 }

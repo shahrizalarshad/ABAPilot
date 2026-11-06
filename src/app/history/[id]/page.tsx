@@ -5,14 +5,17 @@ import { PageShell } from "@/components/page-shell";
 import { Card } from "@/components/ui";
 import { AnalysisView } from "@/components/analysis-view";
 import { getCurrentUser } from "@/lib/supabase/server";
-import { getAnalysis } from "@/lib/data";
+import { getAnalysis, getConventions } from "@/lib/data";
 import { DeleteButton } from "./delete-button";
 
 async function AnalysisDetail(props: PageProps<"/history/[id]">) {
   const { id } = await props.params;
   const user = await getCurrentUser();
   if (!user) redirect(`/login?next=/history/${id}`);
-  const row = await getAnalysis(user.id, id);
+  const [row, conventions] = await Promise.all([
+    getAnalysis(user.id, id),
+    getConventions(user.id),
+  ]);
   if (!row) notFound();
 
   return (
@@ -59,6 +62,12 @@ async function AnalysisDetail(props: PageProps<"/history/[id]">) {
           ticketId={row.ticketId}
           title={row.title}
           actions={<DeleteButton id={row.id} />}
+          exportMeta={{
+            module: row.module,
+            changeId: row.changeId,
+            fsdVersion: row.fsdVersion,
+            technicalAuthor: conventions.authorId,
+          }}
         />
         <Card title="Details">
           <p className="text-xs text-zinc-500">

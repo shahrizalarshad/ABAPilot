@@ -1,8 +1,9 @@
 "use client";
 
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import type { DeepPartial } from "ai";
-import { FileDown, Loader2 } from "lucide-react";
+import { FileDown, FileText, Loader2 } from "lucide-react";
+import type { ExportMeta } from "@/lib/docx-export";
 import { Badge, Card, CopyButton, Prose } from "@/components/ui";
 import { analysisToMarkdown } from "@/lib/markdown";
 import type { Analysis } from "@/lib/schema";
@@ -14,6 +15,8 @@ type Props = {
   isLoading?: boolean;
   /** Extra buttons shown next to Copy / .md (e.g. "Saved to history", Delete). */
   actions?: ReactNode;
+  /** Ticket context for the Word export header. */
+  exportMeta?: ExportMeta;
 };
 
 /** Renders a (possibly still streaming) analysis. Used by the workspace and the history page. */
@@ -23,8 +26,20 @@ export function AnalysisView({
   title,
   isLoading,
   actions,
+  exportMeta,
 }: Props) {
   const md = analysisToMarkdown(a, ticketId, title);
+  const [exporting, setExporting] = useState(false);
+
+  const exportWord = async () => {
+    setExporting(true);
+    try {
+      const { downloadTechSpec } = await import("@/lib/docx-export");
+      await downloadTechSpec(a, { ticketId, title, ...exportMeta });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const download = () => {
     const blob = new Blob([md], { type: "text/markdown" });
@@ -68,6 +83,19 @@ export function AnalysisView({
             className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"
           >
             <FileDown className="h-3.5 w-3.5" /> .md
+          </button>
+          <button
+            onClick={exportWord}
+            disabled={isLoading || exporting}
+            title="Technical specification in Word format"
+            className="inline-flex items-center gap-1 rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+          >
+            {exporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <FileText className="h-3.5 w-3.5" />
+            )}
+            Word (.docx)
           </button>
         </div>
       </div>
