@@ -9,9 +9,37 @@ export const ticketInputSchema = z.object({
     .string()
     .min(10, "Describe the ticket in at least 10 characters.")
     .max(30_000),
-  code: z.string().max(200_000, "The code is too long (max 200,000 characters).").default(""),
+  code: z
+    .string()
+    .max(200_000, "The code is too long (max 200,000 characters).")
+    .default(""),
   /** Functional specification (FSD) text, extracted in the browser from a .docx. */
-  spec: z.string().max(150_000, "The FSD is too long (max 150,000 characters).").default(""),
+  spec: z
+    .string()
+    .max(150_000, "The FSD is too long (max 150,000 characters).")
+    .default(""),
+  /** Screenshots/diagrams from the FSD (resized in the browser). Sent to the AI, not stored. */
+  images: z
+    .array(
+      z.object({
+        label: z.string().regex(/^Image \d{1,3}$/),
+        mediaType: z.enum(["image/jpeg", "image/png"]),
+        data: z
+          .string()
+          .max(1_500_000)
+          .regex(/^[A-Za-z0-9+/]+=*$/, "Invalid image data."),
+        section: z.string().max(300).default(""),
+      }),
+    )
+    .max(25, "Too many images (max 25).")
+    .default([])
+    .refine(
+      (imgs) => imgs.reduce((n, i) => n + i.data.length, 0) <= 3_500_000,
+      {
+        message:
+          "The images are too large in total. Remove some and try again.",
+      },
+    ),
   /** Optional "bring your own key". Never stored server-side. */
   apiKey: z.string().max(300).optional(),
 });

@@ -53,7 +53,26 @@ export async function POST(req: Request) {
     model: anthropic(MODEL),
     output: Output.object({ schema: analysisSchema }),
     system: buildSystemPrompt(conventions),
-    prompt: buildUserPrompt(input),
+    messages: [
+      {
+        role: "user",
+        content: [
+          { type: "text", text: buildUserPrompt(input) },
+          // Each FSD image follows a text label so the model can match it to [Image N] in the FSD.
+          ...input.images.flatMap((img) => [
+            {
+              type: "text" as const,
+              text: `${img.label}${img.section ? ` (FSD section: ${img.section})` : ""}:`,
+            },
+            {
+              type: "image" as const,
+              image: img.data,
+              mediaType: img.mediaType,
+            },
+          ]),
+        ],
+      },
+    ],
     onError: ({ error }) => console.error("[analyze] stream error:", error),
   });
 
