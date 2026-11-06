@@ -10,23 +10,6 @@ export const ticketInputSchema = z.object({
     .min(10, "Describe the ticket in at least 10 characters.")
     .max(30_000),
   code: z.string().max(60_000).default(""),
-  conventions: z
-    .object({
-      authorId: z.string().max(50).default(""),
-      changeTagFormat: z.string().max(500).default(""),
-      systemRelease: z.string().max(100).default(""),
-      namingRules: z.string().max(4000).default(""),
-      extraRules: z.string().max(8000).default(""),
-      language: z.string().max(30).default("English"),
-    })
-    .default({
-      authorId: "",
-      changeTagFormat: "",
-      systemRelease: "",
-      namingRules: "",
-      extraRules: "",
-      language: "English",
-    }),
   /** Optional "bring your own key". Never stored server-side. */
   apiKey: z.string().max(300).optional(),
 });
