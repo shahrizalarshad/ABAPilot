@@ -1,0 +1,1 @@
+ALTER TABLE "analyses" ADD COLUMN "spec" text DEFAULT '' NOT NULL;

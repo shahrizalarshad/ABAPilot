@@ -35,6 +35,7 @@ export async function saveAnalysis(input: {
   module: string;
   description: string;
   code: string;
+  spec: string;
   result: Analysis;
   model: string;
   inputTokens?: number;

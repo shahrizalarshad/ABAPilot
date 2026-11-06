@@ -5,6 +5,13 @@ import Link from "next/link";
 import { useObject } from "@ai-sdk/react";
 import { AlertTriangle, Check, Loader2, Sparkles, Square } from "lucide-react";
 import { Field, inputCls } from "@/components/ui";
+import { UploadField } from "@/components/upload-field";
+import {
+  CODE_ACCEPT,
+  SPEC_ACCEPT,
+  readCodeFiles,
+  readSpecFile,
+} from "@/lib/file-import";
 import { AnalysisView } from "@/components/analysis-view";
 import { analysisSchema } from "@/lib/schema";
 import { loadApiKey } from "@/lib/browser-storage";
@@ -41,6 +48,9 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const [module, setModule] = useState("");
   const [description, setDescription] = useState("");
   const [code, setCode] = useState("");
+  const [codeFiles, setCodeFiles] = useState<string[]>([]);
+  const [spec, setSpec] = useState("");
+  const [specFile, setSpecFile] = useState<string[]>([]);
   const [savedId, setSavedId] = useState<string | null>(null);
   const pendingId = useRef<string | null>(null);
 
@@ -72,6 +82,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
       module,
       description,
       code,
+      spec,
       apiKey: loadApiKey() || undefined,
     });
   };
@@ -139,17 +150,62 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             required
           />
         </Field>
-        <Field
-          label="ABAP code, short dump or logs (optional)"
-          hint="Remove client names and sensitive data before pasting."
+        <UploadField
+          label="Functional spec / FSD (optional)"
+          hint="Upload the FSD as .docx (drag & drop works) or paste the relevant parts. Text is extracted in your browser."
+          accept={SPEC_ACCEPT}
+          files={specFile}
+          onFiles={async ([f]) => {
+            setSpec(await readSpecFile(f));
+            setSpecFile([f.name]);
+          }}
+          onClear={() => {
+            setSpec("");
+            setSpecFile([]);
+          }}
         >
           <textarea
+            aria-label="Functional spec"
+            className={`${inputCls} min-h-28 text-xs`}
+            value={spec}
+            onChange={(e) => setSpec(e.target.value)}
+            placeholder="Drop a .docx here, or paste requirements…"
+          />
+        </UploadField>
+        <UploadField
+          label="ABAP code, short dump or logs (optional)"
+          hint="Upload one or more program files (.abap, .txt from SE38/SE80) or paste. Remove client names and sensitive data."
+          accept={CODE_ACCEPT}
+          multiple
+          files={codeFiles}
+          onFiles={async (files) => {
+            const text = await readCodeFiles(files);
+            setCode((prev) =>
+              prev.trim() ? `${prev.trimEnd()}\n\n${text}` : text,
+            );
+            setCodeFiles((prev) => [...prev, ...files.map((f) => f.name)]);
+          }}
+          onClear={() => {
+            setCode("");
+            setCodeFiles([]);
+          }}
+        >
+          <textarea
+            aria-label="ABAP code"
             className={`${inputCls} min-h-40 font-mono text-xs`}
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
+            placeholder="Drop .abap / .txt files here, or paste code…"
           />
-        </Field>
+        </UploadField>
+        {(spec.length > 0 || code.length > 0) && (
+          <p className="text-xs text-zinc-500">
+            {spec.length > 0 && <>FSD: {spec.length.toLocaleString()} chars</>}
+            {spec.length > 0 && code.length > 0 && " · "}
+            {code.length > 0 && <>Code: {code.length.toLocaleString()} chars</>}
+          </p>
+        )}
         <div className="flex items-center gap-2">
           {isLoading ? (
             <button
