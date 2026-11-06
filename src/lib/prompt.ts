@@ -42,6 +42,9 @@ export function buildUserPrompt(t: TicketInput): string {
   return `Ticket ID: ${t.ticketId || "(not given)"}
 Title: ${t.title || "(not given)"}
 SAP module (user-supplied, may be empty): ${t.module || "(not given)"}
+Country: ${t.country || "(not given)"}
+FSD version being implemented: ${t.fsdVersion || "(not given)"}
+Change ID for this change: ${t.changeId || "(not given)"}${t.changeId ? ` — tag every new or changed line with it, following the program's existing tagging style (e.g. trailing "${t.changeId}+ on added lines and "${t.changeId}- on removed/commented lines) and the team's change tag format. Use ${t.changeId} for {TAG}.` : ""}
 
 Ticket description:
 """

@@ -33,6 +33,8 @@ export async function saveAnalysis(input: {
   ticketId: string;
   title: string;
   module: string;
+  changeId: string;
+  fsdVersion: string;
   description: string;
   code: string;
   spec: string;

@@ -89,6 +89,8 @@ export async function POST(req: Request) {
         ticketId: input.ticketId,
         title: input.title,
         module: input.module,
+        changeId: input.changeId,
+        fsdVersion: input.fsdVersion,
         description: input.description,
         code: input.code,
         spec: input.spec,
