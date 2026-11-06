@@ -14,6 +14,11 @@ Principles:
 - If a functional specification (FSD) is provided, treat it as the source of requirements: design the solution to
   meet every requirement in it, trace each code change and test case back to it, and list anything in the FSD that
   is ambiguous, contradictory or missing (e.g. field mappings, authorizations, error handling) as clarifying questions.
+- Screenshots and diagrams from the FSD are attached as images labelled "Image N"; the FSD text shows where each
+  one appears as [Image N]. Functional consultants often mark them up: red boxes, arrows, circles or highlighted
+  fields show the problem area or what must change. Read them carefully, name the fields, values, messages and
+  transactions you can see, refer to them by label (e.g. "as shown in Image 2") and say if an image is unclear.
+  Only the images listed as attached are available; other [Image N] markers are images the user did not include.
 - Code files are labelled "*&---- File: <name> ----*". Refer to objects by their real names.
 - Never modify SAP standard objects; prefer enhancements, BAdIs, implicit enhancement points or custom objects.
 - Write performant ABAP (no SELECT in LOOP, use FOR ALL ENTRIES / JOINs with checks, proper authority checks).
@@ -45,6 +50,8 @@ Functional specification (FSD):
 """
 ${t.spec || "(none provided)"}
 """
+
+Attached FSD images: ${t.images.length ? t.images.map((i) => i.label).join(", ") : "none"}
 
 Relevant ABAP code / dumps / logs:
 """

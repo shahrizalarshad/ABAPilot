@@ -11,6 +11,9 @@ import {
   SPEC_ACCEPT,
   readCodeFiles,
   readSpecFile,
+  encodeImages,
+  MAX_IMAGES,
+  type SpecImage,
 } from "@/lib/file-import";
 import { AnalysisView } from "@/components/analysis-view";
 import { analysisSchema } from "@/lib/schema";
@@ -51,6 +54,11 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const [codeFiles, setCodeFiles] = useState<string[]>([]);
   const [spec, setSpec] = useState("");
   const [specFile, setSpecFile] = useState<string[]>([]);
+  const [specImages, setSpecImages] = useState<SpecImage[]>([]);
+  const [skippedImages, setSkippedImages] = useState<string[]>([]);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [preparing, setPreparing] = useState(false);
+  const [prepError, setPrepError] = useState("");
   const [savedId, setSavedId] = useState<string | null>(null);
   const pendingId = useRef<string | null>(null);
 
@@ -74,8 +82,24 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
     },
   });
 
-  const run = () => {
+  const run = async () => {
     setSavedId(null);
+    setPrepError("");
+    const chosen = specImages.filter((i) => selected.has(i.label));
+    let images: Awaited<ReturnType<typeof encodeImages>> = [];
+    if (chosen.length) {
+      setPreparing(true);
+      try {
+        images = await encodeImages(chosen);
+      } catch (e) {
+        setPrepError(
+          e instanceof Error ? e.message : "Couldn't prepare the images.",
+        );
+        return;
+      } finally {
+        setPreparing(false);
+      }
+    }
     submit({
       ticketId,
       title,
@@ -83,6 +107,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
       description,
       code,
       spec,
+      images,
       apiKey: loadApiKey() || undefined,
     });
   };
@@ -156,12 +181,19 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
           accept={SPEC_ACCEPT}
           files={specFile}
           onFiles={async ([f]) => {
-            setSpec(await readSpecFile(f));
+            const result = await readSpecFile(f);
+            setSpec(result.text);
+            setSpecImages(result.images);
+            setSelected(new Set(result.defaultSelection));
+            setSkippedImages(result.skipped);
             setSpecFile([f.name]);
           }}
           onClear={() => {
             setSpec("");
             setSpecFile([]);
+            setSpecImages([]);
+            setSkippedImages([]);
+            setSelected(new Set());
           }}
         >
           <textarea
@@ -172,6 +204,14 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             placeholder="Drop a .docx here, or paste requirements…"
           />
         </UploadField>
+        {(specImages.length > 0 || skippedImages.length > 0) && (
+          <SpecImages
+            images={specImages}
+            skipped={skippedImages}
+            selected={selected}
+            onChange={setSelected}
+          />
+        )}
         <UploadField
           label="ABAP code, short dump or logs (optional)"
           hint="Upload one or more program files (.abap, .txt from SE38/SE80) or paste. Remove client names and sensitive data."
@@ -201,7 +241,13 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
         </UploadField>
         {(spec.length > 0 || code.length > 0) && (
           <p className="text-xs text-zinc-500">
-            {spec.length > 0 && <>FSD: {spec.length.toLocaleString()} chars</>}
+            {spec.length > 0 && (
+              <>
+                FSD: {spec.length.toLocaleString()} chars
+                {selected.size > 0 &&
+                  ` + ${selected.size} image${selected.size > 1 ? "s" : ""}`}
+              </>
+            )}
             {spec.length > 0 && code.length > 0 && " · "}
             {code.length > 0 && <>Code: {code.length.toLocaleString()} chars</>}
           </p>
@@ -218,10 +264,19 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
           ) : (
             <button
               type="submit"
-              disabled={description.trim().length < 10}
+              disabled={
+                description.trim().length < 10 ||
+                preparing ||
+                selected.size > MAX_IMAGES
+              }
               className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >
-              <Sparkles className="h-4 w-4" /> Analyse ticket
+              {preparing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Sparkles className="h-4 w-4" />
+              )}
+              {preparing ? "Preparing images…" : "Analyse ticket"}
             </button>
           )}
           <span className="text-xs text-zinc-500">
@@ -231,6 +286,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             </Link>
           </span>
         </div>
+        {prepError && <p className="text-xs text-red-600">{prepError}</p>}
       </form>
 
       {/* ---------- Output ---------- */}
@@ -281,5 +337,127 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
         )}
       </div>
     </main>
+  );
+}
+
+function SpecImages({
+  images,
+  skipped,
+  selected,
+  onChange,
+}: {
+  images: SpecImage[];
+  skipped: string[];
+  selected: Set<string>;
+  onChange: (next: Set<string>) => void;
+}) {
+  // Group by FSD version (newest first); images without a version go by heading, last.
+  const groups: { key: string; version: number | null; items: SpecImage[] }[] =
+    [];
+  for (const img of images) {
+    const key =
+      img.version != null
+        ? `Version ${img.version}`
+        : img.section || "Other images";
+    const g = groups.find((x) => x.key === key);
+    if (g) g.items.push(img);
+    else groups.push({ key, version: img.version, items: [img] });
+  }
+  groups.sort((a, b) => (b.version ?? -1) - (a.version ?? -1));
+  const toggle = (labels: string[], on: boolean) => {
+    const next = new Set(selected);
+    labels.forEach((l) => (on ? next.add(l) : next.delete(l)));
+    onChange(next);
+  };
+  const over = selected.size > MAX_IMAGES;
+
+  return (
+    <div className="space-y-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+      {images.length > 0 && (
+        <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+          <span
+            className={
+              over
+                ? "font-medium text-red-600"
+                : "text-zinc-600 dark:text-zinc-400"
+            }
+          >
+            {selected.size} of {images.length} images selected (max {MAX_IMAGES}
+            ). Pick the screenshots for the change you&apos;re working on.
+          </span>
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange(new Set())}
+              className="text-zinc-500 hover:underline"
+            >
+              Clear selection
+            </button>
+          )}
+        </div>
+      )}
+      <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
+        {groups.map((g) => {
+          const labels = g.items.map((i) => i.label);
+          const all = labels.every((l) => selected.has(l));
+          return (
+            <section key={g.key}>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <h4 className="truncate text-xs font-semibold" title={g.key}>
+                  {g.key}{" "}
+                  <span className="font-normal text-zinc-500">
+                    ({g.items.length})
+                  </span>
+                </h4>
+                <button
+                  type="button"
+                  onClick={() => toggle(labels, !all)}
+                  className="shrink-0 text-[11px] text-blue-600 hover:underline"
+                >
+                  {all ? "Deselect" : "Select"} all
+                </button>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                {g.items.map((img) => {
+                  const on = selected.has(img.label);
+                  return (
+                    <button
+                      key={img.label}
+                      type="button"
+                      onClick={() => toggle([img.label], !on)}
+                      aria-pressed={on}
+                      aria-label={`${on ? "Deselect" : "Select"} ${img.label}`}
+                      className={`relative overflow-hidden rounded border text-left ${on ? "border-blue-600 ring-2 ring-blue-600/30" : "border-zinc-200 opacity-60 hover:opacity-100 dark:border-zinc-700"}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
+                      <img
+                        src={img.thumb}
+                        alt={img.label}
+                        className="h-20 w-full bg-zinc-50 object-contain"
+                      />
+                      <span className="block truncate px-1 py-0.5 text-[10px] text-zinc-500">
+                        {img.label}
+                      </span>
+                      {on && (
+                        <span className="absolute top-1 right-1 rounded-full bg-blue-600 p-0.5 text-white">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+      {skipped.length > 0 && (
+        <p className="text-xs text-amber-700 dark:text-amber-400">
+          Can&apos;t read {skipped.length} image{skipped.length > 1 ? "s" : ""}:{" "}
+          {skipped.join(", ")}. If one matters, paste it into the FSD as a
+          PNG/JPG screenshot.
+        </p>
+      )}
+    </div>
   );
 }
