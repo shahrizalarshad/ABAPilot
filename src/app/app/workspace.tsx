@@ -16,6 +16,7 @@ import {
   type SpecImage,
 } from "@/lib/file-import";
 import type { EmbeddedObject } from "@/lib/docx-objects";
+import { compactAbap, missingIncludes } from "@/lib/abap-compact";
 import { AnalysisView } from "@/components/analysis-view";
 import { MAX_CODE_CHARS, MAX_SPEC_CHARS, analysisSchema } from "@/lib/schema";
 import { loadApiKey } from "@/lib/browser-storage";
@@ -53,6 +54,10 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const [description, setDescription] = useState("");
   const [code, setCode] = useState("");
   const [codeFiles, setCodeFiles] = useState<string[]>([]);
+  /** Code before "Compact code", for Undo; null when not compacted. */
+  const [codeBeforeCompact, setCodeBeforeCompact] = useState<string | null>(
+    null,
+  );
   const [spec, setSpec] = useState("");
   const [specFile, setSpecFile] = useState<string[]>([]);
   const [specImages, setSpecImages] = useState<SpecImage[]>([]);
@@ -84,6 +89,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
     },
   });
 
+  const missing = missingIncludes(code, codeFiles);
   const tooLong = spec.length > MAX_SPEC_CHARS || code.length > MAX_CODE_CHARS;
 
   const run = async () => {
@@ -248,10 +254,12 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
               prev.trim() ? `${prev.trimEnd()}\n\n${text}` : text,
             );
             setCodeFiles((prev) => [...prev, ...files.map((f) => f.name)]);
+            setCodeBeforeCompact(null);
           }}
           onClear={() => {
             setCode("");
             setCodeFiles([]);
+            setCodeBeforeCompact(null);
           }}
         >
           <textarea
@@ -263,6 +271,51 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             placeholder="Drop .abap / .txt files here, or paste code…"
           />
         </UploadField>
+        {missing.length > 0 && (
+          <p className="-mt-2 text-xs text-amber-700 dark:text-amber-400">
+            This code uses include{missing.length > 1 ? "s" : ""} that
+            aren&apos;t uploaded:{" "}
+            <span className="font-mono">{missing.join(", ")}</span>. Upload them
+            too (SE38 → Utilities → More Utilities → Upload/Download) so the AI
+            sees the full logic.
+          </p>
+        )}
+        {code.length > 2000 && (
+          <div className="-mt-2 flex flex-wrap items-center gap-2 text-xs">
+            {codeBeforeCompact == null ? (
+              <button
+                type="button"
+                onClick={() => {
+                  const r = compactAbap(code);
+                  setCodeBeforeCompact(code);
+                  setCode(r.text);
+                }}
+                className={`rounded-md border px-2 py-1 ${code.length > MAX_CODE_CHARS ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700" : "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"}`}
+                title="Removes comment lines, commented-out code and blank lines. Keeps code, trailing change tags and the latest change history."
+              >
+                Compact code
+              </button>
+            ) : (
+              <>
+                <span className="text-green-700 dark:text-green-400">
+                  Compacted {codeBeforeCompact.length.toLocaleString()} →{" "}
+                  {code.length.toLocaleString()} chars (comment lines, old
+                  commented-out code and blank lines removed)
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCode(codeBeforeCompact);
+                    setCodeBeforeCompact(null);
+                  }}
+                  className="text-zinc-500 underline hover:text-zinc-800"
+                >
+                  Undo
+                </button>
+              </>
+            )}
+          </div>
+        )}
         {(spec.length > 0 || code.length > 0) && (
           <p
             className={`text-xs ${tooLong ? "font-medium text-red-600" : "text-zinc-500"}`}
@@ -270,8 +323,10 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             {tooLong && (
               <>
                 Too long to analyse (max {MAX_SPEC_CHARS.toLocaleString()} FSD /{" "}
-                {MAX_CODE_CHARS.toLocaleString()} code chars). Remove old
-                version history or unrelated code.{" "}
+                {MAX_CODE_CHARS.toLocaleString()} code chars).{" "}
+                {code.length > MAX_CODE_CHARS && codeBeforeCompact == null
+                  ? "Click Compact code to remove comments. "
+                  : "Remove old version history or unrelated code. "}
               </>
             )}
             {spec.length > 0 && (

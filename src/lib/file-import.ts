@@ -15,13 +15,31 @@ export const MAX_FILE_BYTES = 10 * 1024 * 1024; // 10 MB per file
 
 export class ImportError extends Error {}
 
+/**
+ * SAP GUI downloads use the PC's code page, not UTF-8: Windows-1252 (e.g. Word
+ * "smart quotes" pasted into comments) or Windows-874 for Thai texts.
+ */
+export function decodeText(buf: ArrayBuffer): string {
+  try {
+    return new TextDecoder("utf-8", { fatal: true })
+      .decode(buf)
+      .replace(/^\uFEFF/, "");
+  } catch {
+    const thai = new TextDecoder("windows-874").decode(buf);
+    if (/[\u0E01-\u0E5B]/.test(thai)) return thai;
+    return new TextDecoder("windows-1252").decode(buf);
+  }
+}
+
 /** Read ABAP source / dump / log files and label each one with its file name. */
 export async function readCodeFiles(files: File[]): Promise<string> {
   const parts: string[] = [];
   for (const f of files) {
     if (f.size > MAX_FILE_BYTES)
       throw new ImportError(`${f.name} is larger than 10 MB.`);
-    const text = (await f.text()).replace(/\r\n/g, "\n").trimEnd();
+    const text = decodeText(await f.arrayBuffer())
+      .replace(/\r\n/g, "\n")
+      .trimEnd();
     if (/[\u0000-\u0008]/.test(text.slice(0, 2000))) {
       throw new ImportError(`${f.name} doesn't look like a text file.`);
     }
@@ -81,7 +99,7 @@ export async function readSpecFile(file: File): Promise<SpecResult> {
   }
   if (name.endsWith(".txt") || name.endsWith(".md"))
     return {
-      text: (await file.text()).trim(),
+      text: decodeText(await file.arrayBuffer()).trim(),
       images: [],
       defaultSelection: [],
       skipped: [],
