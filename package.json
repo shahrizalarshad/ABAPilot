@@ -16,6 +16,7 @@
     "@supabase/ssr": "^0.12.7",
     "@supabase/supabase-js": "^2.119.0",
     "ai": "^7.0.163",
+    "docx": "^9.15.2",
     "drizzle-orm": "^0.45.4",
     "jszip": "^3.10.2",
     "lucide-react": "^1.69.0",

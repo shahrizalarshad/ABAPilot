@@ -48,7 +48,13 @@ LOOP AT lt_items INTO ls_item.
 ENDLOOP.`,
 };
 
-export function Workspace({ systemRelease }: { systemRelease: string }) {
+export function Workspace({
+  systemRelease,
+  authorId,
+}: {
+  systemRelease: string;
+  authorId: string;
+}) {
   const [ticketId, setTicketId] = useState("");
   const [title, setTitle] = useState("");
   const [module, setModule] = useState("");
@@ -583,6 +589,14 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             ticketId={ticketId}
             title={title}
             isLoading={isLoading}
+            exportMeta={{
+              module,
+              changeId,
+              fsdVersion,
+              country,
+              programId: meta?.programId,
+              technicalAuthor: authorId,
+            }}
             actions={
               !isLoading && !error && savedId ? (
                 <Link
