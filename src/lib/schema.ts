@@ -9,7 +9,9 @@ export const ticketInputSchema = z.object({
     .string()
     .min(10, "Describe the ticket in at least 10 characters.")
     .max(30_000),
-  code: z.string().max(60_000).default(""),
+  code: z.string().max(200_000, "The code is too long (max 200,000 characters).").default(""),
+  /** Functional specification (FSD) text, extracted in the browser from a .docx. */
+  spec: z.string().max(150_000, "The FSD is too long (max 150,000 characters).").default(""),
   /** Optional "bring your own key". Never stored server-side. */
   apiKey: z.string().max(300).optional(),
 });

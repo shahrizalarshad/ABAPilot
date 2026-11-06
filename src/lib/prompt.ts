@@ -11,6 +11,10 @@ Principles:
 - Be concrete: name real SAP objects, transactions, tables, BAdIs, user exits and function modules where you are confident.
 - If you are unsure an object exists, say so in the analysis and add a clarifying question instead of inventing it.
 - Base the analysis on the code provided. If no code is provided, explain what code you would need to inspect.
+- If a functional specification (FSD) is provided, treat it as the source of requirements: design the solution to
+  meet every requirement in it, trace each code change and test case back to it, and list anything in the FSD that
+  is ambiguous, contradictory or missing (e.g. field mappings, authorizations, error handling) as clarifying questions.
+- Code files are labelled "*&---- File: <name> ----*". Refer to objects by their real names.
 - Never modify SAP standard objects; prefer enhancements, BAdIs, implicit enhancement points or custom objects.
 - Write performant ABAP (no SELECT in LOOP, use FOR ALL ENTRIES / JOINs with checks, proper authority checks).
 - Code must be syntactically valid ABAP for the stated release and wrapped in the team's change tag format.
@@ -35,6 +39,11 @@ SAP module (user-supplied, may be empty): ${t.module || "(not given)"}
 Ticket description:
 """
 ${t.description}
+"""
+
+Functional specification (FSD):
+"""
+${t.spec || "(none provided)"}
 """
 
 Relevant ABAP code / dumps / logs:

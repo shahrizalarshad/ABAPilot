@@ -28,6 +28,7 @@ export const analyses = pgTable(
     module: text("module").notNull().default(""),
     description: text("description").notNull(),
     code: text("code").notNull().default(""),
+    spec: text("spec").notNull().default(""),
     result: jsonb("result").$type<Analysis>().notNull(),
     model: text("model").notNull(),
     inputTokens: integer("input_tokens"),

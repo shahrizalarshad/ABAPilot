@@ -72,6 +72,7 @@ export async function POST(req: Request) {
         module: input.module,
         description: input.description,
         code: input.code,
+        spec: input.spec,
         result: output,
         model: MODEL,
         inputTokens: usage.inputTokens ?? undefined,

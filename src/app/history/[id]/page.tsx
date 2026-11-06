@@ -35,6 +35,17 @@ async function AnalysisDetail(props: PageProps<"/history/[id]">) {
           </summary>
           <div className="space-y-3 border-t border-zinc-200 p-4 dark:border-zinc-800">
             <p className="whitespace-pre-wrap">{row.description}</p>
+            {row.spec && (
+              <details className="rounded-md border border-zinc-200 dark:border-zinc-800">
+                <summary className="cursor-pointer px-3 py-2 text-xs font-semibold">
+                  Functional spec (FSD) · {row.spec.length.toLocaleString()}{" "}
+                  chars
+                </summary>
+                <p className="max-h-96 overflow-y-auto whitespace-pre-wrap border-t border-zinc-200 p-3 text-xs dark:border-zinc-800">
+                  {row.spec}
+                </p>
+              </details>
+            )}
             {row.code && (
               <pre className="overflow-x-auto rounded-md bg-zinc-950 p-3 font-mono text-xs text-zinc-100">
                 {row.code}
