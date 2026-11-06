@@ -3,6 +3,7 @@ import { generateText, Output } from "ai";
 import { z } from "zod";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getConventions } from "@/lib/data";
+import { describeAiError } from "@/lib/ai-errors";
 
 /** Drafts the ticket title and description from the FSD's latest-version sections. */
 export const maxDuration = 60;
@@ -77,12 +78,10 @@ ${t.latestVersionText}
     return Response.json(output);
   } catch (err) {
     console.error("[prefill] failed:", err);
+    const { message, status } = describeAiError(err);
     return Response.json(
-      {
-        error:
-          "Couldn't draft the title and description. Fill them in manually.",
-      },
-      { status: 502 },
+      { error: `Couldn't draft the title and description: ${message}` },
+      { status },
     );
   }
 }

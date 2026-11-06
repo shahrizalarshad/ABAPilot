@@ -5,6 +5,7 @@ import { analysisSchema, ticketInputSchema } from "@/lib/schema";
 import { buildSystemPrompt, buildUserPrompt } from "@/lib/prompt";
 import { getCurrentUser } from "@/lib/supabase/server";
 import { getConventions, saveAnalysis } from "@/lib/data";
+import { describeAiError } from "@/lib/ai-errors";
 
 // Large tickets with code can take a while to analyse.
 export const maxDuration = 120;
@@ -108,8 +109,37 @@ export async function POST(req: Request) {
     }
   });
 
+  // Wait for the first output (or error) before answering, so a failing API call
+  // (no credit, bad key, unknown model) becomes a clear error instead of an empty result.
+  const reader = result.stream.getReader();
+  const buffered: Awaited<ReturnType<typeof reader.read>>["value"][] = [];
+  for (;;) {
+    const { value, done } = await reader.read();
+    if (done) break;
+    if (value.type === "error") {
+      reader.cancel().catch(() => {});
+      const { message, status } = describeAiError(value.error);
+      return Response.json({ error: message }, { status });
+    }
+    buffered.push(value);
+    if (value.type === "text-delta") break;
+  }
+  const stream = new ReadableStream<(typeof buffered)[number]>({
+    start(controller) {
+      for (const part of buffered) if (part) controller.enqueue(part);
+    },
+    async pull(controller) {
+      const { value, done } = await reader.read();
+      if (done) controller.close();
+      else controller.enqueue(value);
+    },
+    cancel(reason) {
+      return reader.cancel(reason);
+    },
+  });
+
   return createTextStreamResponse({
     headers: { "x-analysis-id": analysisId },
-    stream: toTextStream({ stream: result.stream }),
+    stream: toTextStream({ stream: stream as typeof result.stream }),
   });
 }
