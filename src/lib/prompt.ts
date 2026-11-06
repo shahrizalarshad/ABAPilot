@@ -1,6 +1,7 @@
 import type { TicketInput } from "./schema";
+import type { Conventions } from "./conventions";
 
-export function buildSystemPrompt(c: TicketInput["conventions"]): string {
+export function buildSystemPrompt(c: Conventions): string {
   const today = new Date().toISOString().slice(0, 10);
   return `You are a senior SAP ABAP technical consultant with 15+ years of support and development experience.
 You analyse support tickets (incidents and change requests) and produce a complete technical work package that a
