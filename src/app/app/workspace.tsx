@@ -4,7 +4,8 @@ import { useRef, useState } from "react";
 import Link from "next/link";
 import { useObject } from "@ai-sdk/react";
 import { AlertTriangle, Check, Loader2, Sparkles, Square } from "lucide-react";
-import { Field, inputCls } from "@/components/ui";
+import { Field, SourceTag, Step, inputCls } from "@/components/ui";
+import { extractFsdMeta, type FsdMeta } from "@/lib/fsd-meta";
 import { UploadField } from "@/components/upload-field";
 import {
   CODE_ACCEPT,
@@ -52,6 +53,16 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const [title, setTitle] = useState("");
   const [module, setModule] = useState("");
   const [description, setDescription] = useState("");
+  const [changeId, setChangeId] = useState("");
+  const [fsdVersion, setFsdVersion] = useState("");
+  const [country, setCountry] = useState("");
+  const [meta, setMeta] = useState<FsdMeta | null>(null);
+  /** Fields whose current value was filled automatically (removed when the user edits). */
+  const [autoFilled, setAutoFilled] = useState<Record<string, "fsd" | "ai">>(
+    {},
+  );
+  const [drafting, setDrafting] = useState(false);
+  const [draftError, setDraftError] = useState("");
   const [code, setCode] = useState("");
   const [codeFiles, setCodeFiles] = useState<string[]>([]);
   /** Code before "Compact code", for Undo; null when not compacted. */
@@ -92,6 +103,93 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const missing = missingIncludes(code, codeFiles);
   const tooLong = spec.length > MAX_SPEC_CHARS || code.length > MAX_CODE_CHARS;
 
+  /** Wrap a setter so a manual edit removes the "from FSD"/"AI draft" tag. */
+  const edit = (key: string, set: (v: string) => void) => (v: string) => {
+    set(v);
+    setAutoFilled((a) => {
+      if (!(key in a)) return a;
+      const next = { ...a };
+      delete next[key];
+      return next;
+    });
+  };
+  const tag = (key: string) =>
+    autoFilled[key] ? <SourceTag kind={autoFilled[key]} /> : null;
+
+  /** Fill ticket details from the FSD; only touches fields that are empty or were auto-filled. */
+  const applyFsd = async (text: string) => {
+    const m = extractFsdMeta(text);
+    setMeta(m);
+    setDraftError("");
+    if (!m) return;
+    const current: Record<string, string> = {
+      ticketId,
+      changeId,
+      module,
+      fsdVersion,
+      country,
+      title,
+      description,
+    };
+    const setters: Record<string, (v: string) => void> = {
+      ticketId: setTicketId,
+      changeId: setChangeId,
+      module: setModule,
+      fsdVersion: setFsdVersion,
+      country: setCountry,
+      title: setTitle,
+      description: setDescription,
+    };
+    const canFill = (k: string) => !current[k].trim() || k in autoFilled;
+    const filled: Record<string, "fsd" | "ai"> = {};
+    const values: Record<string, string> = {
+      ticketId: m.ticketId,
+      changeId: m.changeId,
+      module: m.module,
+      fsdVersion: m.version,
+      country: m.countryName || m.country,
+    };
+    for (const [k, v] of Object.entries(values))
+      if (v && canFill(k)) {
+        setters[k](v);
+        filled[k] = "fsd";
+      }
+    setAutoFilled((a) => ({ ...a, ...filled }));
+
+    if (
+      m.latestVersionText.length < 20 ||
+      !(canFill("title") || canFill("description"))
+    )
+      return;
+    setDrafting(true);
+    try {
+      const res = await fetch("/api/prefill", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ ...m, apiKey: loadApiKey() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok)
+        throw new Error(data?.error ?? "Couldn't draft the description.");
+      const ai: Record<string, "ai"> = {};
+      if (canFill("title") && data.title) {
+        setTitle(data.title);
+        ai.title = "ai";
+      }
+      if (canFill("description") && data.description) {
+        setDescription(data.description);
+        ai.description = "ai";
+      }
+      setAutoFilled((a) => ({ ...a, ...ai }));
+    } catch (e) {
+      setDraftError(
+        e instanceof Error ? e.message : "Couldn't draft the description.",
+      );
+    } finally {
+      setDrafting(false);
+    }
+  };
+
   const run = async () => {
     setSavedId(null);
     setPrepError("");
@@ -114,6 +212,9 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
       ticketId,
       title,
       module,
+      changeId,
+      fsdVersion,
+      country,
       description,
       code,
       spec,
@@ -148,45 +249,13 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             Load example
           </button>
         </div>
-        <div className="grid grid-cols-[1fr_90px] gap-3">
-          <Field label="Ticket ID">
-            <input
-              className={inputCls}
-              value={ticketId}
-              onChange={(e) => setTicketId(e.target.value)}
-              placeholder="INC-12345"
-            />
-          </Field>
-          <Field label="Module">
-            <input
-              className={inputCls}
-              value={module}
-              onChange={(e) => setModule(e.target.value)}
-              placeholder="SD"
-            />
-          </Field>
-        </div>
-        <Field label="Title">
-          <input
-            className={inputCls}
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="Short summary"
-          />
-        </Field>
-        <Field
-          label="Description"
-          hint="Paste the ticket text, user emails, expected vs actual behaviour."
-        >
-          <textarea
-            className={`${inputCls} min-h-36`}
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            required
-          />
-        </Field>
+        <Step n={1} title="Start with the FSD">
+          <span className="text-xs text-zinc-500">
+            optional, fills the details for you
+          </span>
+        </Step>
         <UploadField
-          label="Functional spec / FSD (optional)"
+          label="Functional spec / FSD"
           hint="Upload the FSD as .docx (drag & drop works) or paste the relevant parts. Text is extracted in your browser."
           accept={SPEC_ACCEPT}
           files={specFile}
@@ -198,6 +267,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             setSkippedImages(result.skipped);
             setObjects(result.objects);
             setSpecFile([f.name]);
+            void applyFsd(result.text);
           }}
           onClear={() => {
             setSpec("");
@@ -206,6 +276,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             setSkippedImages([]);
             setObjects([]);
             setSelected(new Set());
+            setMeta(null);
           }}
         >
           <textarea
@@ -242,6 +313,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             onChange={setSelected}
           />
         )}
+        <Step n={2} title="Add the ABAP code" />
         <UploadField
           label="ABAP code, short dump or logs (optional)"
           hint="Upload one or more program files (.abap, .txt from SE38/SE80) or paste. Remove client names and sensitive data."
@@ -316,6 +388,105 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             )}
           </div>
         )}
+        <Step n={3} title="Check the ticket details">
+          {drafting && (
+            <span className="inline-flex items-center gap-1 text-xs text-violet-700 dark:text-violet-300">
+              <Loader2 className="h-3 w-3 animate-spin" /> AI is drafting title
+              &amp; description…
+            </span>
+          )}
+        </Step>
+        {meta && (
+          <div className="rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+            <p className="font-medium">
+              From the FSD: {meta.programId || "program"}
+              {meta.programTitle && ` · ${meta.programTitle}`}
+            </p>
+            <p className="mt-0.5">
+              {[
+                meta.version && `Version ${meta.version}`,
+                meta.changeId && `Change ${meta.changeId}`,
+                meta.ticketId && `Ticket ${meta.ticketId}`,
+                meta.status,
+                meta.date,
+                meta.functionalAuthor && `by ${meta.functionalAuthor}`,
+              ]
+                .filter(Boolean)
+                .join(" · ") ||
+                "No version table found — fill in the details below."}
+            </p>
+          </div>
+        )}
+        {draftError && <p className="text-xs text-amber-700">{draftError}</p>}
+        <div className="grid grid-cols-2 gap-3">
+          <Field label={<>Ticket ID {tag("ticketId")}</>}>
+            <input
+              className={inputCls}
+              value={ticketId}
+              onChange={(e) => edit("ticketId", setTicketId)(e.target.value)}
+              placeholder="INC-12345"
+            />
+          </Field>
+          <Field label={<>Change ID {tag("changeId")}</>}>
+            <input
+              className={inputCls}
+              value={changeId}
+              onChange={(e) => edit("changeId", setChangeId)(e.target.value)}
+              placeholder="C075"
+            />
+          </Field>
+          <Field label={<>Module {tag("module")}</>}>
+            <input
+              className={inputCls}
+              value={module}
+              onChange={(e) => edit("module", setModule)(e.target.value)}
+              placeholder="SD"
+            />
+          </Field>
+          <Field label={<>Country {tag("country")}</>}>
+            <input
+              className={inputCls}
+              value={country}
+              onChange={(e) => edit("country", setCountry)(e.target.value)}
+              placeholder="Thailand"
+            />
+          </Field>
+        </div>
+        {fsdVersion && (
+          <p className="-mt-1 text-xs text-zinc-500">
+            Implementing FSD version <strong>{fsdVersion}</strong>{" "}
+            {tag("fsdVersion")}{" "}
+            <button
+              type="button"
+              className="underline"
+              onClick={() => edit("fsdVersion", setFsdVersion)("")}
+            >
+              clear
+            </button>
+          </p>
+        )}
+        <Field label={<>Title {tag("title")}</>}>
+          <input
+            className={inputCls}
+            value={title}
+            onChange={(e) => edit("title", setTitle)(e.target.value)}
+            placeholder="Short summary"
+          />
+        </Field>
+        <Field
+          label={<>Description {tag("description")}</>}
+          hint="What needs to change and why. Filled from the FSD's latest version if you upload one; review and edit."
+        >
+          <textarea
+            className={`${inputCls} min-h-36`}
+            value={description}
+            onChange={(e) =>
+              edit("description", setDescription)(e.target.value)
+            }
+            required
+          />
+        </Field>
+        <Step n={4} title="Analyse" />
         {(spec.length > 0 || code.length > 0) && (
           <p
             className={`text-xs ${tooLong ? "font-medium text-red-600" : "text-zinc-500"}`}

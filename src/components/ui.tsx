@@ -11,13 +11,15 @@ export function Field({
   hint,
   children,
 }: {
-  label: string;
+  label: ReactNode;
   hint?: string;
   children: ReactNode;
 }) {
   return (
     <label className="block space-y-1.5">
-      <span className="text-sm font-medium">{label}</span>
+      <span className="flex items-center gap-1.5 text-sm font-medium">
+        {label}
+      </span>
       {children}
       {hint && <span className="block text-xs text-zinc-500">{hint}</span>}
     </label>
@@ -167,5 +169,36 @@ function Paragraph({ text }: { text: string }) {
         </span>
       ))}
     </p>
+  );
+}
+
+/** Small marker next to a field label showing where its value came from. */
+export function SourceTag({ kind }: { kind: "fsd" | "ai" }) {
+  return (
+    <span
+      className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${kind === "fsd" ? "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-300" : "bg-violet-100 text-violet-800 dark:bg-violet-950 dark:text-violet-300"}`}
+    >
+      {kind === "fsd" ? "from FSD" : "AI draft"}
+    </span>
+  );
+}
+
+export function Step({
+  n,
+  title,
+  children,
+}: {
+  n: number;
+  title: string;
+  children?: ReactNode;
+}) {
+  return (
+    <div className="flex items-center gap-2 pt-2">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[11px] font-semibold text-white">
+        {n}
+      </span>
+      <h2 className="text-sm font-semibold">{title}</h2>
+      {children}
+    </div>
   );
 }

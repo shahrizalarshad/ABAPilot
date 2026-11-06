@@ -26,6 +26,8 @@ export const analyses = pgTable(
     ticketId: text("ticket_id").notNull().default(""),
     title: text("title").notNull().default(""),
     module: text("module").notNull().default(""),
+    changeId: text("change_id").notNull().default(""),
+    fsdVersion: text("fsd_version").notNull().default(""),
     description: text("description").notNull(),
     code: text("code").notNull().default(""),
     spec: text("spec").notNull().default(""),

@@ -5,6 +5,12 @@ export const ticketInputSchema = z.object({
   ticketId: z.string().max(100).default(""),
   title: z.string().max(300).default(""),
   module: z.string().max(50).default(""),
+  /** Change number for code tags, e.g. "C075" (Amend # in the FSD version table). */
+  changeId: z.string().max(30).default(""),
+  /** FSD version being implemented, e.g. "68.0". */
+  fsdVersion: z.string().max(20).default(""),
+  /** Country of the program, e.g. "Thailand". */
+  country: z.string().max(40).default(""),
   description: z
     .string()
     .min(10, "Describe the ticket in at least 10 characters.")
