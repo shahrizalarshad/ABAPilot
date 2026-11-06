@@ -1,27 +1,105 @@
 @import "tailwindcss";
 
+/*
+ * ABAPilot brand tokens (see the ABAPilot design system).
+ * Light values on :root, dark values when the OS prefers dark.
+ * Components use the Tailwind classes generated from @theme below
+ * (bg-paper, text-ink, text-spruce, border-line …), never raw colours.
+ */
 :root {
-  --background: #ffffff;
-  --foreground: #18181b;
+  --paper: #f5f7f6;
+  --surface: #ffffff;
+  --surface-sunken: #eaefed;
+  --line: #cfd9d5;
+  --line-strong: #7d8f89;
+  --ink: #13211e;
+  --ink-muted: #4e605a;
+  --spruce: #0d6655;
+  --spruce-hover: #0a5546;
+  --spruce-soft: #dcefe9;
+  --on-spruce: #ffffff;
+  --markup: #b42a32;
+  --markup-soft: #fbe6e6;
+  --amber: #8a5300;
+  --amber-soft: #fcefd9;
+  --code: #0f1a18;
+  --code-ink: #d6e4df;
+  --code-added: #7fe0b6;
+  --code-removed: #ff8f8f;
+  --code-comment: #8aa29b;
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #09090b;
-    --foreground: #f4f4f5;
+    --paper: #0d1412;
+    --surface: #141d1b;
+    --surface-sunken: #09100e;
+    --line: #2b3834;
+    --line-strong: #5f746d;
+    --ink: #e4ede9;
+    --ink-muted: #9db1aa;
+    --spruce: #45c4a6;
+    --spruce-hover: #5fd3b7;
+    --spruce-soft: #12322b;
+    --on-spruce: #06201a;
+    --markup: #ff7a7f;
+    --markup-soft: #3a1517;
+    --amber: #f2b350;
+    --amber-soft: #33240c;
+    --code: #0a1210;
+    color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans:
-    ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --color-paper: var(--paper);
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+  --color-ink: var(--ink);
+  --color-muted: var(--ink-muted);
+  --color-spruce: var(--spruce);
+  --color-spruce-hover: var(--spruce-hover);
+  --color-spruce-soft: var(--spruce-soft);
+  --color-on-spruce: var(--on-spruce);
+  --color-markup: var(--markup);
+  --color-markup-soft: var(--markup-soft);
+  --color-amber: var(--amber);
+  --color-amber-soft: var(--amber-soft);
+  --color-code: var(--code);
+  --color-code-ink: var(--code-ink);
+  --color-code-added: var(--code-added);
+  --color-code-removed: var(--code-removed);
+  --color-code-comment: var(--code-comment);
+
+  --font-display: var(--font-archivo), "Arial Narrow", system-ui, sans-serif;
+  --font-sans: var(--font-plex-sans), system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: var(--font-plex-mono), ui-monospace, Consolas, monospace;
+
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: var(--paper);
+  color: var(--ink);
   font-family: var(--font-sans);
+}
+
+/* One focus ring for every interactive element. */
+:where(a, button, input, textarea, select, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--spruce);
+  outline-offset: 2px;
+}
+
+/* Display face: Archivo at its slightly wide setting. */
+.font-display {
+  font-stretch: 112%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
 }

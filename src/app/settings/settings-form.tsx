@@ -23,8 +23,10 @@ export function SettingsForm({ initial }: { initial: Conventions }) {
   return (
     <main className="mx-auto max-w-2xl space-y-8 px-4 py-8">
       <div>
-        <h1 className="text-xl font-semibold">Team conventions</h1>
-        <p className="mt-1 text-sm text-zinc-500">
+        <h1 className="font-display text-[26px] leading-tight font-bold">
+          Team conventions
+        </h1>
+        <p className="mt-1 text-sm text-muted">
           Saved to your account and applied to every analysis, so the output
           matches how your team writes code and documentation.
         </p>
@@ -98,9 +100,9 @@ export function SettingsForm({ initial }: { initial: Conventions }) {
           />
         </Field>
 
-        <div className="border-t border-zinc-200 pt-5 dark:border-zinc-800">
+        <div className="border-t border-line pt-5">
           <h2 className="font-semibold">Your own API key (optional)</h2>
-          <p className="mt-1 mb-3 text-sm text-zinc-500">
+          <p className="mt-1 mb-3 text-sm text-muted">
             Use your own Anthropic key. It is stored only in this browser and
             sent with each request; the server never saves it.
           </p>
@@ -117,25 +119,25 @@ export function SettingsForm({ initial }: { initial: Conventions }) {
         <div className="flex items-center gap-3">
           <button
             disabled={pending}
-            className="inline-flex items-center gap-2 rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+            className="inline-flex items-center gap-2 rounded-md bg-spruce px-4 py-2 text-sm font-medium text-on-spruce hover:bg-spruce-hover disabled:opacity-60"
           >
             {pending && <Loader2 className="h-4 w-4 animate-spin" />}
             Save
           </button>
           <button
             type="button"
-            className="text-sm text-zinc-500 hover:underline"
+            className="text-sm text-muted hover:underline"
             onClick={() => setC(DEFAULT_CONVENTIONS)}
           >
             Reset to defaults
           </button>
           {status === "saved" && (
-            <span className="inline-flex items-center gap-1 text-sm text-green-600">
+            <span className="inline-flex items-center gap-1 text-sm text-spruce">
               <Check className="h-4 w-4" /> Saved
             </span>
           )}
           {status === "error" && (
-            <span className="text-sm text-red-600">{message}</span>
+            <span className="text-sm text-markup">{message}</span>
           )}
         </div>
       </form>

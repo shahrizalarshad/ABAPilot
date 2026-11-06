@@ -12,9 +12,11 @@ async function LoginContent(props: PageProps<"/login">) {
   return (
     <>
       <main className="mx-auto max-w-sm px-4 py-16">
-        <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
-          <h1 className="mb-1 text-xl font-semibold">Sign in to ABAPilot</h1>
-          <p className="mb-6 text-sm text-zinc-500">
+        <div className="rounded-lg border border-line bg-surface p-6 shadow-sm">
+          <h1 className="mb-1 font-display text-[26px] leading-tight font-bold">
+            Sign in to ABAPilot
+          </h1>
+          <p className="mb-6 text-sm text-muted">
             Your analyses and team conventions are saved to your account.
           </p>
           <LoginForm

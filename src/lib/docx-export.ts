@@ -16,7 +16,7 @@ export type ExportMeta = {
 };
 
 const MONO = "Consolas";
-const ACCENT = "1F4E79";
+const ACCENT = "0D6655";
 
 /** Build a technical-spec .docx for an analysis and trigger a download. */
 export async function downloadTechSpec(
@@ -146,7 +146,7 @@ export async function downloadTechSpec(
         ? { size: opts.width, type: WidthType.PERCENTAGE }
         : undefined,
       shading: opts.header
-        ? { type: ShadingType.CLEAR, color: "auto", fill: "D9E2F3" }
+        ? { type: ShadingType.CLEAR, color: "auto", fill: "DCEFE9" }
         : undefined,
       children: (text || "").split("\n").map(
         (l) =>
@@ -285,7 +285,7 @@ export async function downloadTechSpec(
   children.push(heading("2. Technical analysis"), ...md(a.analysis));
   if (a.clarifyingQuestions?.length)
     children.push(
-      heading("3. Open questions"),
+      heading("3. Ask before building"),
       ...md(a.clarifyingQuestions.map((q) => `- ${q}`).join("\n")),
     );
   if (a.affectedObjects?.length)

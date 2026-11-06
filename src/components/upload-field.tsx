@@ -55,7 +55,7 @@ export function UploadField({
           type="button"
           onClick={() => input.current?.click()}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded-md border border-zinc-300 px-2 py-1 text-xs hover:bg-zinc-100 disabled:opacity-60 dark:border-zinc-700 dark:hover:bg-zinc-800"
+          className="inline-flex items-center gap-1 rounded-md border border-line-strong px-2 py-1 text-xs hover:bg-sunken disabled:opacity-60"
         >
           {busy ? (
             <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -79,7 +79,7 @@ export function UploadField({
           {files.map((f, i) => (
             <span
               key={`${f}-${i}`}
-              className="rounded bg-blue-50 px-2 py-0.5 font-mono text-xs text-blue-800 dark:bg-blue-950 dark:text-blue-300"
+              className="rounded bg-spruce-soft px-2 py-0.5 font-mono text-xs text-spruce"
             >
               {f}
             </span>
@@ -90,7 +90,7 @@ export function UploadField({
               onClear();
               setError("");
             }}
-            className="inline-flex items-center gap-0.5 text-xs text-zinc-500 hover:text-red-600"
+            className="inline-flex items-center gap-0.5 text-xs text-muted hover:text-markup"
           >
             <X className="h-3 w-3" /> Clear
           </button>
@@ -108,15 +108,15 @@ export function UploadField({
           setDragging(false);
           handle(e.dataTransfer.files);
         }}
-        className={`rounded-md ${dragging ? "ring-2 ring-blue-500 ring-offset-2 dark:ring-offset-zinc-950" : ""}`}
+        className={`rounded-md ${dragging ? "ring-2 ring-spruce ring-offset-2 ring-offset-paper" : ""}`}
       >
         {children}
       </div>
 
       {error ? (
-        <span className="block text-xs text-red-600">{error}</span>
+        <span className="block text-xs text-markup">{error}</span>
       ) : (
-        hint && <span className="block text-xs text-zinc-500">{hint}</span>
+        hint && <span className="block text-xs text-muted">{hint}</span>
       )}
     </div>
   );
