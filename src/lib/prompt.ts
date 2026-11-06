@@ -19,6 +19,8 @@ Principles:
   fields show the problem area or what must change. Read them carefully, name the fields, values, messages and
   transactions you can see, refer to them by label (e.g. "as shown in Image 2") and say if an image is unclear.
   Only the images listed as attached are available; other [Image N] markers are images the user did not include.
+- The code may have been compacted by the tool: full-line comments, commented-out code and blank lines removed,
+  and older change-history header lines dropped. Don't treat missing comments as missing logic.
 - Code files are labelled "*&---- File: <name> ----*". Refer to objects by their real names.
 - Never modify SAP standard objects; prefer enhancements, BAdIs, implicit enhancement points or custom objects.
 - Write performant ABAP (no SELECT in LOOP, use FOR ALL ENTRIES / JOINs with checks, proper authority checks).
