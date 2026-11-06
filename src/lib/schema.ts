@@ -16,7 +16,10 @@ export const ticketInputSchema = z.object({
   /** Functional specification (FSD) text, extracted in the browser from a .docx. */
   spec: z
     .string()
-    .max(150_000, "The FSD is too long (max 150,000 characters).")
+    .max(
+      300_000,
+      "The FSD is too long (max 300,000 characters). Delete old version history you don't need.",
+    )
     .default(""),
   /** Screenshots/diagrams from the FSD (resized in the browser). Sent to the AI, not stored. */
   images: z
@@ -43,6 +46,10 @@ export const ticketInputSchema = z.object({
   /** Optional "bring your own key". Never stored server-side. */
   apiKey: z.string().max(300).optional(),
 });
+
+/** Client-side limits, kept in sync with the schema above. */
+export const MAX_SPEC_CHARS = 300_000;
+export const MAX_CODE_CHARS = 200_000;
 
 export type TicketInput = z.infer<typeof ticketInputSchema>;
 
