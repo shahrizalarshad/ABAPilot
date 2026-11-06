@@ -85,6 +85,7 @@ export function Workspace({
   const [prepError, setPrepError] = useState("");
   const [savedId, setSavedId] = useState<string | null>(null);
   const pendingId = useRef<string | null>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
   const {
     object: a,
@@ -107,6 +108,35 @@ export function Workspace({
   });
 
   const missing = missingIncludes(code, codeFiles);
+  const loadExample = () => {
+    setTicketId(EXAMPLE.ticketId);
+    setTitle(EXAMPLE.title);
+    setModule(EXAMPLE.module);
+    setDescription(EXAMPLE.description);
+    setCode(EXAMPLE.code);
+  };
+  const fsdSummary = specFile.length
+    ? [
+        specFile[0],
+        meta?.version && `v${meta.version}`,
+        selected.size > 0 &&
+          `${selected.size} image${selected.size > 1 ? "s" : ""}`,
+        objects.filter((o) => o.readable).length > 0 &&
+          `${objects.filter((o) => o.readable).length} embedded sheet(s) read`,
+      ]
+        .filter(Boolean)
+        .join(" · ")
+    : spec.trim()
+      ? `${spec.length.toLocaleString()} chars pasted`
+      : "";
+  const codeSummary = code.trim()
+    ? `${codeFiles.length ? codeFiles.join(", ") : "Pasted"} · ${code.length.toLocaleString()} chars`
+    : "";
+  const detailsSummary =
+    description.trim().length >= 10
+      ? [ticketId, changeId, module].filter(Boolean).join(" · ") ||
+        "Description added"
+      : "";
   const tooLong = spec.length > MAX_SPEC_CHARS || code.length > MAX_CODE_CHARS;
 
   /** Wrap a setter so a manual edit removes the "from FSD"/"AI draft" tag. */
@@ -214,6 +244,13 @@ export function Workspace({
         setPreparing(false);
       }
     }
+    // On phones the results sit below the form; bring them into view.
+    requestAnimationFrame(() =>
+      resultsRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      }),
+    );
     submit({
       ticketId,
       title,
@@ -233,33 +270,21 @@ export function Workspace({
     <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       {/* ---------- Input ---------- */}
       <form
-        className="space-y-4 lg:sticky lg:top-20 lg:self-start"
+        className="space-y-4"
         onSubmit={(e) => {
           e.preventDefault();
           run();
         }}
       >
-        <div className="flex items-center justify-between">
-          <h1 className="text-lg font-semibold">New ticket</h1>
-          <button
-            type="button"
-            className="text-xs text-blue-600 hover:underline"
-            onClick={() => {
-              setTicketId(EXAMPLE.ticketId);
-              setTitle(EXAMPLE.title);
-              setModule(EXAMPLE.module);
-              setDescription(EXAMPLE.description);
-              setCode(EXAMPLE.code);
-            }}
-          >
-            Load example
-          </button>
-        </div>
-        <Step n={1} title="Start with the FSD">
-          <span className="text-xs text-zinc-500">
-            optional, fills the details for you
-          </span>
-        </Step>
+        <h1 className="font-display text-[26px] leading-tight font-bold">
+          New ticket
+        </h1>
+        <Step
+          n={1}
+          title="Start with the FSD"
+          done={!!fsdSummary}
+          summary={fsdSummary || "Optional. Fills the ticket details for you."}
+        />
         <UploadField
           label="Functional spec / FSD"
           hint="Upload the FSD as .docx (drag & drop works) or paste the relevant parts. Text is extracted in your browser."
@@ -285,26 +310,33 @@ export function Workspace({
             setMeta(null);
           }}
         >
-          <textarea
-            aria-label="Functional spec"
-            className={`${inputCls} min-h-28 text-xs`}
-            value={spec}
-            onChange={(e) => setSpec(e.target.value)}
-            placeholder="Drop a .docx here, or paste requirements…"
-          />
+          {specFile.length ? (
+            <details className="rounded-md border border-line bg-sunken">
+              <summary className="cursor-pointer px-3 py-2 text-xs text-muted">
+                View extracted text ({spec.length.toLocaleString()} chars)
+              </summary>
+              <textarea
+                aria-label="Functional spec"
+                className={`${inputCls} min-h-40 rounded-t-none border-x-0 border-b-0 text-xs`}
+                value={spec}
+                onChange={(e) => setSpec(e.target.value)}
+              />
+            </details>
+          ) : (
+            <textarea
+              aria-label="Functional spec"
+              className={`${inputCls} min-h-28 text-xs`}
+              value={spec}
+              onChange={(e) => setSpec(e.target.value)}
+              placeholder="Drop a .docx here, or paste requirements…"
+            />
+          )}
         </UploadField>
         {objects.length > 0 && (
-          <ul className="space-y-0.5 rounded-md border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+          <ul className="space-y-0.5 rounded-md border border-line bg-surface p-3 text-xs">
             <li className="mb-1 font-medium">Embedded in the FSD</li>
             {objects.map((o, i) => (
-              <li
-                key={i}
-                className={
-                  o.readable
-                    ? "text-green-700 dark:text-green-400"
-                    : "text-zinc-500"
-                }
-              >
+              <li key={i} className={o.readable ? "text-spruce" : "text-muted"}>
                 {o.readable ? "✓ Read: " : "– Not readable: "}
                 {o.summary}
               </li>
@@ -319,7 +351,14 @@ export function Workspace({
             onChange={setSelected}
           />
         )}
-        <Step n={2} title="Add the ABAP code" />
+        <Step
+          n={2}
+          title="Add the ABAP code"
+          done={!!codeSummary}
+          summary={
+            codeSummary || "The program and its includes, a short dump or logs."
+          }
+        />
         <UploadField
           label="ABAP code, short dump or logs (optional)"
           hint="Upload one or more program files (.abap, .txt from SE38/SE80) or paste. Remove client names and sensitive data."
@@ -350,7 +389,7 @@ export function Workspace({
           />
         </UploadField>
         {missing.length > 0 && (
-          <p className="-mt-2 text-xs text-amber-700 dark:text-amber-400">
+          <p className="-mt-2 text-xs text-amber">
             This code uses include{missing.length > 1 ? "s" : ""} that
             aren&apos;t uploaded:{" "}
             <span className="font-mono">{missing.join(", ")}</span>. Upload them
@@ -368,14 +407,14 @@ export function Workspace({
                   setCodeBeforeCompact(code);
                   setCode(r.text);
                 }}
-                className={`rounded-md border px-2 py-1 ${code.length > MAX_CODE_CHARS ? "border-blue-600 bg-blue-600 text-white hover:bg-blue-700" : "border-zinc-300 hover:bg-zinc-100 dark:border-zinc-700 dark:hover:bg-zinc-800"}`}
+                className={`rounded-md border px-2 py-1 ${code.length > MAX_CODE_CHARS ? "border-spruce bg-spruce text-on-spruce hover:bg-spruce-hover" : "border-line-strong hover:bg-sunken"}`}
                 title="Removes comment lines, commented-out code and blank lines. Keeps code, trailing change tags and the latest change history."
               >
                 Compact code
               </button>
             ) : (
               <>
-                <span className="text-green-700 dark:text-green-400">
+                <span className="text-spruce">
                   Compacted {codeBeforeCompact.length.toLocaleString()} →{" "}
                   {code.length.toLocaleString()} chars (comment lines, old
                   commented-out code and blank lines removed)
@@ -386,7 +425,7 @@ export function Workspace({
                     setCode(codeBeforeCompact);
                     setCodeBeforeCompact(null);
                   }}
-                  className="text-zinc-500 underline hover:text-zinc-800"
+                  className="text-muted underline hover:text-ink"
                 >
                   Undo
                 </button>
@@ -394,16 +433,21 @@ export function Workspace({
             )}
           </div>
         )}
-        <Step n={3} title="Check the ticket details">
+        <Step
+          n={3}
+          title="Check the ticket details"
+          done={!!detailsSummary}
+          summary={detailsSummary || undefined}
+        >
           {drafting && (
-            <span className="inline-flex items-center gap-1 text-xs text-violet-700 dark:text-violet-300">
+            <span className="inline-flex items-center gap-1 text-xs text-muted">
               <Loader2 className="h-3 w-3 animate-spin" /> AI is drafting title
               &amp; description…
             </span>
           )}
         </Step>
         {meta && (
-          <div className="rounded-md border border-green-200 bg-green-50 p-3 text-xs text-green-900 dark:border-green-900 dark:bg-green-950 dark:text-green-200">
+          <div className="rounded-md border border-spruce bg-spruce-soft p-3 text-xs text-spruce">
             <p className="font-medium">
               From the FSD: {meta.programId || "program"}
               {meta.programTitle && ` · ${meta.programTitle}`}
@@ -423,7 +467,7 @@ export function Workspace({
             </p>
           </div>
         )}
-        {draftError && <p className="text-xs text-amber-700">{draftError}</p>}
+        {draftError && <p className="text-xs text-amber">{draftError}</p>}
         <div className="grid grid-cols-2 gap-3">
           <Field label={<>Ticket ID {tag("ticketId")}</>}>
             <input
@@ -459,7 +503,7 @@ export function Workspace({
           </Field>
         </div>
         {fsdVersion && (
-          <p className="-mt-1 text-xs text-zinc-500">
+          <p className="-mt-1 text-xs text-muted">
             Implementing FSD version <strong>{fsdVersion}</strong>{" "}
             {tag("fsdVersion")}{" "}
             <button
@@ -492,93 +536,123 @@ export function Workspace({
             required
           />
         </Field>
-        <Step n={4} title="Analyse" />
-        {(spec.length > 0 || code.length > 0) && (
-          <p
-            className={`text-xs ${tooLong ? "font-medium text-red-600" : "text-zinc-500"}`}
-          >
-            {tooLong && (
-              <>
-                Too long to analyse (max {MAX_SPEC_CHARS.toLocaleString()} FSD /{" "}
-                {MAX_CODE_CHARS.toLocaleString()} code chars).{" "}
-                {code.length > MAX_CODE_CHARS && codeBeforeCompact == null
-                  ? "Click Compact code to remove comments. "
-                  : "Remove old version history or unrelated code. "}
-              </>
-            )}
-            {spec.length > 0 && (
-              <>
-                FSD: {spec.length.toLocaleString()} chars
-                {selected.size > 0 &&
-                  ` + ${selected.size} image${selected.size > 1 ? "s" : ""}`}
-              </>
-            )}
-            {spec.length > 0 && code.length > 0 && " · "}
-            {code.length > 0 && <>Code: {code.length.toLocaleString()} chars</>}
-          </p>
-        )}
-        <div className="flex items-center gap-2">
-          {isLoading ? (
-            <button
-              type="button"
-              onClick={stop}
-              className="inline-flex items-center gap-2 rounded-md bg-zinc-800 px-4 py-2 text-sm font-medium text-white"
+        {/* Step 4 stays in reach: pinned to the bottom of the screen while the form scrolls. */}
+        <div className="sticky bottom-0 z-10 -mx-4 space-y-2 border-t border-line bg-paper/95 px-4 py-3 backdrop-blur">
+          {(spec.length > 0 || code.length > 0) && (
+            <p
+              className={`text-xs ${tooLong ? "font-medium text-markup" : "text-muted"}`}
             >
-              <Square className="h-4 w-4" /> Stop
-            </button>
-          ) : (
-            <button
-              type="submit"
-              disabled={
-                description.trim().length < 10 ||
-                preparing ||
-                selected.size > MAX_IMAGES ||
-                tooLong
-              }
-              className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
-            >
-              {preparing ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Sparkles className="h-4 w-4" />
+              {tooLong && (
+                <>
+                  Too long to analyse (max {MAX_SPEC_CHARS.toLocaleString()} FSD
+                  / {MAX_CODE_CHARS.toLocaleString()} code chars).{" "}
+                  {code.length > MAX_CODE_CHARS && codeBeforeCompact == null
+                    ? "Click Compact code to remove comments. "
+                    : "Remove old version history or unrelated code. "}
+                </>
               )}
-              {preparing ? "Preparing images…" : "Analyse ticket"}
-            </button>
+              {spec.length > 0 && (
+                <>
+                  FSD: {spec.length.toLocaleString()} chars
+                  {selected.size > 0 &&
+                    ` + ${selected.size} image${selected.size > 1 ? "s" : ""}`}
+                </>
+              )}
+              {spec.length > 0 && code.length > 0 && " · "}
+              {code.length > 0 && (
+                <>Code: {code.length.toLocaleString()} chars</>
+              )}
+            </p>
           )}
-          <span className="text-xs text-zinc-500">
-            Conventions: {systemRelease || "default"} ·{" "}
-            <Link href="/settings" className="text-blue-600 hover:underline">
-              edit
-            </Link>
-          </span>
+          <div className="flex items-center gap-2">
+            {isLoading ? (
+              <button
+                type="button"
+                onClick={stop}
+                className="inline-flex items-center gap-2 rounded-md border border-line-strong bg-surface px-4 py-2 text-sm font-medium text-ink hover:bg-sunken"
+              >
+                <Square className="h-4 w-4" /> Stop
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={
+                  description.trim().length < 10 ||
+                  preparing ||
+                  selected.size > MAX_IMAGES ||
+                  tooLong
+                }
+                className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-spruce px-4 py-2 text-sm font-semibold text-on-spruce hover:bg-spruce-hover disabled:opacity-50"
+              >
+                {preparing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {preparing ? "Preparing images…" : "Analyse ticket"}
+              </button>
+            )}
+            <span className="text-xs text-muted">
+              Conventions: {systemRelease || "default"} ·{" "}
+              <Link href="/settings" className="text-spruce hover:underline">
+                edit
+              </Link>
+            </span>
+          </div>
         </div>
-        {prepError && <p className="text-xs text-red-600">{prepError}</p>}
+        {prepError && <p className="text-xs text-markup">{prepError}</p>}
       </form>
 
       {/* ---------- Output ---------- */}
-      <div className="space-y-4">
+      <div ref={resultsRef} className="scroll-mt-20 space-y-4">
         {error && (
-          <div className="flex gap-2 rounded-md border border-red-300 bg-red-50 p-3 text-sm text-red-800 dark:border-red-900 dark:bg-red-950 dark:text-red-300">
+          <div className="flex gap-2 rounded-md border border-markup bg-markup-soft p-3 text-sm text-markup">
             <AlertTriangle className="h-4 w-4 shrink-0" />
             <span>{errorMessage(error)}</span>
           </div>
         )}
 
         {!a && !isLoading && !error && (
-          <div className="rounded-lg border border-dashed border-zinc-300 p-10 text-center text-sm text-zinc-500 dark:border-zinc-700">
-            Paste a ticket and click <strong>Analyse ticket</strong>.
-            You&apos;ll get the analysis, affected objects, ABAP code with your
-            change tags, test cases and a change log you can paste straight into
-            the ticket. Every analysis is saved to your{" "}
-            <Link href="/history" className="text-blue-600 hover:underline">
-              history
-            </Link>
-            .
+          <div className="rounded-lg border border-dashed border-line-strong p-6 text-sm">
+            <p className="font-medium text-ink">What you&apos;ll get</p>
+            <ul className="mt-3 grid gap-2 text-muted sm:grid-cols-2">
+              {[
+                "Summary and technical analysis",
+                "Ask before building: gaps in the FSD",
+                "Affected objects",
+                "Code wrapped in your change tags",
+                "Unit test cases",
+                "Change log and Word tech spec",
+              ].map((t) => (
+                <li key={t} className="flex items-center gap-2">
+                  <span
+                    className="h-1.5 w-1.5 rounded-sm bg-spruce"
+                    aria-hidden="true"
+                  />
+                  {t}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-4 text-xs text-muted">
+              Every analysis is saved to your{" "}
+              <Link href="/history" className="text-spruce hover:underline">
+                history
+              </Link>
+              .{" "}
+              <button
+                type="button"
+                onClick={loadExample}
+                className="text-spruce hover:underline"
+              >
+                Load example ticket
+              </button>{" "}
+              to see it without your own files.
+            </p>
           </div>
         )}
 
         {isLoading && !a && (
-          <div className="flex items-center gap-2 text-sm text-zinc-500">
+          <div className="flex items-center gap-2 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin" /> Analysing ticket…
           </div>
         )}
@@ -601,7 +675,7 @@ export function Workspace({
               !isLoading && !error && savedId ? (
                 <Link
                   href={`/history/${savedId}`}
-                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-green-700 hover:underline dark:text-green-400"
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs text-spruce hover:underline"
                 >
                   <Check className="h-3.5 w-3.5" /> Saved to history
                 </Link>
@@ -646,16 +720,10 @@ function SpecImages({
   const over = selected.size > MAX_IMAGES;
 
   return (
-    <div className="space-y-3 rounded-md border border-zinc-200 bg-white p-3 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="space-y-3 rounded-md border border-line bg-surface p-3">
       {images.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-          <span
-            className={
-              over
-                ? "font-medium text-red-600"
-                : "text-zinc-600 dark:text-zinc-400"
-            }
-          >
+          <span className={over ? "font-medium text-markup" : "text-muted"}>
             {selected.size} of {images.length} images selected (max {MAX_IMAGES}
             ). Pick the screenshots for the change you&apos;re working on.
           </span>
@@ -663,7 +731,7 @@ function SpecImages({
             <button
               type="button"
               onClick={() => onChange(new Set())}
-              className="text-zinc-500 hover:underline"
+              className="text-muted hover:underline"
             >
               Clear selection
             </button>
@@ -679,14 +747,14 @@ function SpecImages({
               <div className="mb-1 flex items-center justify-between gap-2">
                 <h4 className="truncate text-xs font-semibold" title={g.key}>
                   {g.key}{" "}
-                  <span className="font-normal text-zinc-500">
+                  <span className="font-normal text-muted">
                     ({g.items.length})
                   </span>
                 </h4>
                 <button
                   type="button"
                   onClick={() => toggle(labels, !all)}
-                  className="shrink-0 text-[11px] text-blue-600 hover:underline"
+                  className="shrink-0 text-[11px] text-spruce hover:underline"
                 >
                   {all ? "Deselect" : "Select"} all
                 </button>
@@ -701,19 +769,19 @@ function SpecImages({
                       onClick={() => toggle([img.label], !on)}
                       aria-pressed={on}
                       aria-label={`${on ? "Deselect" : "Select"} ${img.label}`}
-                      className={`relative overflow-hidden rounded border text-left ${on ? "border-blue-600 ring-2 ring-blue-600/30" : "border-zinc-200 opacity-60 hover:opacity-100 dark:border-zinc-700"}`}
+                      className={`relative overflow-hidden rounded border text-left ${on ? "border-spruce ring-2 ring-spruce/30" : "border-line opacity-60 hover:opacity-100"}`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element -- local data URL preview */}
                       <img
                         src={img.thumb}
                         alt={img.label}
-                        className="h-20 w-full bg-zinc-50 object-contain"
+                        className="h-20 w-full bg-paper object-contain"
                       />
-                      <span className="block truncate px-1 py-0.5 text-[10px] text-zinc-500">
+                      <span className="block truncate px-1 py-0.5 text-[10px] text-muted">
                         {img.label}
                       </span>
                       {on && (
-                        <span className="absolute top-1 right-1 rounded-full bg-blue-600 p-0.5 text-white">
+                        <span className="absolute top-1 right-1 rounded-full bg-spruce p-0.5 text-on-spruce">
                           <Check className="h-3 w-3" />
                         </span>
                       )}
@@ -726,7 +794,7 @@ function SpecImages({
         })}
       </div>
       {skipped.length > 0 && (
-        <p className="text-xs text-amber-700 dark:text-amber-400">
+        <p className="text-xs text-amber">
           Can&apos;t read {skipped.length} image{skipped.length > 1 ? "s" : ""}:{" "}
           {skipped.join(", ")}. If one matters, paste it into the FSD as a
           PNG/JPG screenshot.

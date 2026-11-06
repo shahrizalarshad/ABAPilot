@@ -8,11 +8,11 @@ import { Nav } from "@/components/nav";
  */
 export function PageShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950">
+    <div className="min-h-screen bg-paper">
       <Nav />
       <Suspense
         fallback={
-          <div className="flex items-center justify-center gap-2 py-20 text-sm text-zinc-500">
+          <div className="flex items-center justify-center gap-2 py-20 text-sm text-muted">
             <Loader2 className="h-4 w-4 animate-spin" /> Loading…
           </div>
         }
