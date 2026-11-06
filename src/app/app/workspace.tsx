@@ -15,8 +15,9 @@ import {
   MAX_IMAGES,
   type SpecImage,
 } from "@/lib/file-import";
+import type { EmbeddedObject } from "@/lib/docx-objects";
 import { AnalysisView } from "@/components/analysis-view";
-import { analysisSchema } from "@/lib/schema";
+import { MAX_CODE_CHARS, MAX_SPEC_CHARS, analysisSchema } from "@/lib/schema";
 import { loadApiKey } from "@/lib/browser-storage";
 
 /** The API returns JSON errors like {"error": "..."}; show just the message. */
@@ -56,6 +57,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
   const [specFile, setSpecFile] = useState<string[]>([]);
   const [specImages, setSpecImages] = useState<SpecImage[]>([]);
   const [skippedImages, setSkippedImages] = useState<string[]>([]);
+  const [objects, setObjects] = useState<EmbeddedObject[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [preparing, setPreparing] = useState(false);
   const [prepError, setPrepError] = useState("");
@@ -81,6 +83,8 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
       if (object) setSavedId(pendingId.current);
     },
   });
+
+  const tooLong = spec.length > MAX_SPEC_CHARS || code.length > MAX_CODE_CHARS;
 
   const run = async () => {
     setSavedId(null);
@@ -186,6 +190,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             setSpecImages(result.images);
             setSelected(new Set(result.defaultSelection));
             setSkippedImages(result.skipped);
+            setObjects(result.objects);
             setSpecFile([f.name]);
           }}
           onClear={() => {
@@ -193,6 +198,7 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             setSpecFile([]);
             setSpecImages([]);
             setSkippedImages([]);
+            setObjects([]);
             setSelected(new Set());
           }}
         >
@@ -204,6 +210,24 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
             placeholder="Drop a .docx here, or paste requirements…"
           />
         </UploadField>
+        {objects.length > 0 && (
+          <ul className="space-y-0.5 rounded-md border border-zinc-200 bg-white p-3 text-xs dark:border-zinc-800 dark:bg-zinc-900">
+            <li className="mb-1 font-medium">Embedded in the FSD</li>
+            {objects.map((o, i) => (
+              <li
+                key={i}
+                className={
+                  o.readable
+                    ? "text-green-700 dark:text-green-400"
+                    : "text-zinc-500"
+                }
+              >
+                {o.readable ? "✓ Read: " : "– Not readable: "}
+                {o.summary}
+              </li>
+            ))}
+          </ul>
+        )}
         {(specImages.length > 0 || skippedImages.length > 0) && (
           <SpecImages
             images={specImages}
@@ -240,7 +264,16 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
           />
         </UploadField>
         {(spec.length > 0 || code.length > 0) && (
-          <p className="text-xs text-zinc-500">
+          <p
+            className={`text-xs ${tooLong ? "font-medium text-red-600" : "text-zinc-500"}`}
+          >
+            {tooLong && (
+              <>
+                Too long to analyse (max {MAX_SPEC_CHARS.toLocaleString()} FSD /{" "}
+                {MAX_CODE_CHARS.toLocaleString()} code chars). Remove old
+                version history or unrelated code.{" "}
+              </>
+            )}
             {spec.length > 0 && (
               <>
                 FSD: {spec.length.toLocaleString()} chars
@@ -267,7 +300,8 @@ export function Workspace({ systemRelease }: { systemRelease: string }) {
               disabled={
                 description.trim().length < 10 ||
                 preparing ||
-                selected.size > MAX_IMAGES
+                selected.size > MAX_IMAGES ||
+                tooLong
               }
               className="inline-flex shrink-0 items-center gap-2 whitespace-nowrap rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
             >

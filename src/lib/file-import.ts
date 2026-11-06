@@ -1,5 +1,7 @@
 "use client";
 
+import { readEmbeddedObjects, type EmbeddedObject } from "./docx-objects";
+
 /**
  * Browser-side file reading. Files never leave the browser: only the extracted
  * text is sent with the analysis request.
@@ -56,6 +58,8 @@ export type SpecResult = {
   /** Labels selected by default: the latest version's images, or all for small FSDs. */
   defaultSelection: string[];
   skipped: string[];
+  /** Embedded objects found (Excel sheets read into the text; others noted). */
+  objects: EmbeddedObject[];
 };
 
 export const MAX_IMAGES = 25;
@@ -81,23 +85,44 @@ export async function readSpecFile(file: File): Promise<SpecResult> {
       images: [],
       defaultSelection: [],
       skipped: [],
+      objects: [],
     };
   if (!name.endsWith(".docx"))
     throw new ImportError("Please upload a .docx (Word) file.");
 
   const mammoth = await import("mammoth");
+  const buffer = await file.arrayBuffer();
+  // Embedded Excel/PDF/Visio objects appear to mammoth only as their preview picture.
+  const objectsByPreview = await readEmbeddedObjects(buffer);
+  const objectIds = [...objectsByPreview.keys()];
+  const usedObjects = new Set<number>();
   let html: string;
   try {
-    ({ value: html } = await mammoth.convertToHtml({
-      arrayBuffer: await file.arrayBuffer(),
-    }));
+    ({ value: html } = await mammoth.convertToHtml(
+      { arrayBuffer: buffer },
+      {
+        convertImage: mammoth.images.imgElement(async (image) => {
+          const data = await image.readAsBase64String();
+          const id = objectIds.indexOf(data);
+          if (id >= 0) {
+            usedObjects.add(id);
+            return { src: `object:${id}` };
+          }
+          return { src: `data:${image.contentType};base64,${data}` };
+        }),
+      },
+    ));
   } catch {
     throw new ImportError(
       `Couldn't read ${file.name}. Is it a valid, unprotected .docx file?`,
     );
   }
 
-  const { text: rawText, found } = htmlToStructuredText(html);
+  const objectList = [...objectsByPreview.values()];
+  const { text: rawText, found } = htmlToStructuredText(
+    html,
+    (id) => objectList[id]?.text ?? "",
+  );
   let text = rawText;
   const images: SpecImage[] = [];
   const skipped: string[] = [];
@@ -129,7 +154,13 @@ export async function readSpecFile(file: File): Promise<SpecResult> {
     .trim();
   if (!text && images.length === 0)
     throw new ImportError(`${file.name} contains no readable text.`);
-  return { text, images, defaultSelection: pickDefault(images), skipped };
+  return {
+    text,
+    images,
+    defaultSelection: pickDefault(images),
+    skipped,
+    objects: [...usedObjects].map((i) => objectList[i]),
+  };
 }
 
 /** Small FSDs: everything. Large ones: the highest version's images (what you're working on). */
@@ -217,18 +248,28 @@ export async function encodeImages(
 
 type FoundImage = Omit<SpecImage, "thumb">;
 
-function htmlToStructuredText(html: string): {
+function htmlToStructuredText(
+  html: string,
+  objectText: (id: number) => string,
+): {
   text: string;
   found: FoundImage[];
 } {
   const doc = new DOMParser().parseFromString(html, "text/html");
   const out: string[] = [];
   const found: FoundImage[] = [];
+  const blocks: string[] = [];
   let section = "";
   let version: number | null = null;
   const clean = (s: string | null) => (s ?? "").replace(/\s+/g, " ").trim();
 
   const addImage = (src: string) => {
+    // Preview picture of an embedded object: insert the object's content instead.
+    // (A token survives whitespace cleanup; the table is swapped in at the end.)
+    if (src.startsWith("object:")) {
+      blocks.push(objectText(Number(src.slice(7))));
+      return ` @@OBJECT${blocks.length - 1}@@ `;
+    }
     const label = `Image ${found.length + 1}`;
     found.push({ label, src, section, version });
     return `[${label}]`;
@@ -292,5 +333,8 @@ function htmlToStructuredText(html: string): {
     }
   };
   walk(doc.body);
-  return { text: out.join("\n\n"), found };
+  const text = out
+    .join("\n\n")
+    .replace(/ ?@@OBJECT(\d+)@@ ?/g, (_, i) => `\n\n${blocks[Number(i)]}\n\n`);
+  return { text, found };
 }
