@@ -1,5 +1,6 @@
 import type { Analysis } from "./schema";
 import type { DeepPartial } from "ai";
+import { diffLines, locationText, type SourceIndex } from "./code-diff";
 
 type A = DeepPartial<Analysis>;
 
@@ -8,6 +9,10 @@ export function analysisToMarkdown(
   a: A,
   ticketId?: string,
   title?: string,
+  check: { source: SourceIndex | null; exactLines: boolean } = {
+    source: null,
+    exactLines: false,
+  },
 ): string {
   const out: string[] = [];
   out.push(
@@ -37,10 +42,25 @@ export function analysisToMarkdown(
     out.push(
       `## Code changes\n` +
         a.codeChanges
-          .map(
-            (c) =>
-              `### ${c?.objectName ?? ""}\n${c?.description ?? ""}\n\n\`\`\`abap\n${c?.abapCode ?? ""}\n\`\`\``,
-          )
+          .map((c) => {
+            const where = [c?.fileName, c?.location]
+              .filter(Boolean)
+              .join(" · ");
+            const found = locationText(check.source, check.exactLines, c);
+            const head = [where, found].filter(Boolean).join(" — ");
+            const body = c?.originalCode?.trim()
+              ? "```diff\n" +
+                diffLines(c.originalCode, c?.abapCode ?? "")
+                  .map(
+                    (o) =>
+                      (o.type === "del" ? "-" : o.type === "ins" ? "+" : " ") +
+                      o.text,
+                  )
+                  .join("\n") +
+                "\n```"
+              : `New code:\n\n\`\`\`abap\n${c?.abapCode ?? ""}\n\`\`\``;
+            return `### ${c?.objectName ?? ""}\n${head ? `_${head}_\n\n` : ""}${c?.description ?? ""}\n\n${body}`;
+          })
           .join("\n\n"),
     );
   if (a.testCases?.length)

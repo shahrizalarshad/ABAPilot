@@ -109,10 +109,25 @@ export const analysisSchema = z.object({
     z.object({
       objectName: z.string(),
       description: z.string(),
+      fileName: z
+        .string()
+        .describe(
+          'Name from the "*&---- File: <name> ----*" label of the uploaded file this change goes into. Empty for a new object or when no files are labelled.',
+        ),
+      location: z
+        .string()
+        .describe(
+          'Where in that file, e.g. "FORM get_data", "METHOD check_item", "START-OF-SELECTION". Empty for a new object.',
+        ),
+      originalCode: z
+        .string()
+        .describe(
+          "The exact lines of the uploaded code that this change replaces, copied verbatim and in order (no edits, no \"...\", no skipped lines). Usually 3-40 lines around the change. Empty string for a new object (new FORM, include, class).",
+        ),
       abapCode: z
         .string()
         .describe(
-          "Complete ABAP snippet wrapped in the team's change tag format. No Markdown fences.",
+          "The new code: the full replacement for originalCode (unchanged context lines included as-is), or the complete new object. Wrapped in the team's change tag format. No Markdown fences.",
         ),
     }),
   ),

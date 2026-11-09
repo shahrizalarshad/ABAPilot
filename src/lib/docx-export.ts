@@ -2,6 +2,7 @@
 
 import type { DeepPartial } from "ai";
 import type { Analysis } from "./schema";
+import { diffLines, locationText, type SourceIndex } from "./code-diff";
 
 /** Ticket context printed in the document header. */
 export type ExportMeta = {
@@ -22,6 +23,10 @@ const ACCENT = "0D6655";
 export async function downloadTechSpec(
   a: DeepPartial<Analysis>,
   meta: ExportMeta,
+  check: { source: SourceIndex | null; exactLines: boolean } = {
+    source: null,
+    exactLines: false,
+  },
 ) {
   const d = await import("docx");
   const {
@@ -122,12 +127,63 @@ export async function downloadTechSpec(
     return out;
   };
 
-  const codeLine = (line: string) =>
+  const codeLine = (line: string, fill = "F2F2F2") =>
     new Paragraph({
       children: [new TextRun({ text: line || " ", font: MONO, size: 17 })],
-      shading: { type: ShadingType.CLEAR, color: "auto", fill: "F2F2F2" },
+      shading: { type: ShadingType.CLEAR, color: "auto", fill },
       spacing: { after: 0, line: 240 },
     });
+
+  /** Current / New table: removed lines tinted red, added lines tinted green. */
+  const beforeAfter = (original: string, next: string) => {
+    const ops = diffLines(original, next);
+    const block = (label: string, lines: { text: string; fill?: string }[]) => [
+      new TableRow({
+        children: [
+          new TableCell({
+            borders,
+            shading: { type: ShadingType.CLEAR, color: "auto", fill: "DCEFE9" },
+            children: [
+              new Paragraph({
+                children: [new TextRun({ text: label, bold: true, size: 18 })],
+              }),
+            ],
+          }),
+        ],
+      }),
+      new TableRow({
+        children: [
+          new TableCell({
+            borders,
+            children: lines.map((l) => codeLine(l.text, l.fill ?? "FFFFFF")),
+          }),
+        ],
+      }),
+    ];
+    return new Table({
+      width: { size: 100, type: WidthType.PERCENTAGE },
+      rows: [
+        ...block(
+          "Current code",
+          ops
+            .filter((o) => o.type !== "ins")
+            .map((o) => ({
+              text: o.text,
+              fill: o.type === "del" ? "FBE3E4" : undefined,
+            })),
+        ),
+        ...block(
+          "New code",
+          ops
+            .filter((o) => o.type !== "del")
+            .map((o) => ({
+              text: o.text,
+              fill: o.type === "ins" ? "DDF3E9" : undefined,
+            })),
+        ),
+      ],
+    });
+  };
 
   const heading = (text: string) =>
     new Paragraph({
@@ -314,9 +370,31 @@ export async function downloadTechSpec(
           ],
           spacing: { before: 200 },
         }),
-        ...md(c?.description),
-        ...(c?.abapCode ?? "").split("\n").map(codeLine),
       );
+      const where = [
+        [c?.fileName, c?.location].filter(Boolean).join(" · "),
+        locationText(check.source, check.exactLines, c),
+      ]
+        .filter(Boolean)
+        .join(" — ");
+      if (where)
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: where, italics: true, size: 18 })],
+            spacing: { after: 80 },
+          }),
+        );
+      children.push(...md(c?.description));
+      if (c?.originalCode?.trim())
+        children.push(beforeAfter(c.originalCode, c?.abapCode ?? ""));
+      else
+        children.push(
+          new Paragraph({
+            children: [new TextRun({ text: "New code", bold: true, size: 18 })],
+            spacing: { before: 80, after: 40 },
+          }),
+          ...(c?.abapCode ?? "").split("\n").map((l) => codeLine(l)),
+        );
     }
   }
   if (a.testCases?.length)
