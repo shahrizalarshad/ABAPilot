@@ -7,10 +7,18 @@ import { getCurrentUser } from "@/lib/supabase/server";
 import { getConventions, saveAnalysis } from "@/lib/data";
 import { describeAiError } from "@/lib/ai-errors";
 
-// Large tickets with code can take a while to analyse.
-export const maxDuration = 120;
+// A full analysis (FSD + images + program, with before/after code) can take a few
+// minutes. 300 s is the most Vercel allows on the Hobby plan.
+export const maxDuration = 300;
 
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-5-5";
+
+/** How hard the model thinks. "medium" keeps most tickets well inside the time limit. */
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+type Effort = (typeof EFFORTS)[number];
+const EFFORT: Effort = EFFORTS.includes(process.env.ANTHROPIC_EFFORT as Effort)
+  ? (process.env.ANTHROPIC_EFFORT as Effort)
+  : "medium";
 
 export async function POST(req: Request) {
   const user = await getCurrentUser();
@@ -74,6 +82,7 @@ export async function POST(req: Request) {
         ],
       },
     ],
+    providerOptions: { anthropic: { effort: EFFORT } },
     onError: ({ error }) => console.error("[analyze] stream error:", error),
   });
 
