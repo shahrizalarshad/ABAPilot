@@ -663,6 +663,7 @@ export function Workspace({
             ticketId={ticketId}
             title={title}
             isLoading={isLoading}
+            sourceCode={codeBeforeCompact ?? code}
             exportMeta={{
               module,
               changeId,

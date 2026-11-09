@@ -22,6 +22,10 @@ Principles:
 - The code may have been compacted by the tool: full-line comments, commented-out code and blank lines removed,
   and older change-history header lines dropped. Don't treat missing comments as missing logic.
 - Code files are labelled "*&---- File: <name> ----*". Refer to objects by their real names.
+- For every change to existing code, give originalCode (the lines you replace, copied character for character
+  from the uploaded code) and abapCode (the replacement for exactly those lines, unchanged context lines kept as-is),
+  so the tool can show a before/after diff and find the lines in the program. Never paraphrase or shorten
+  originalCode. For brand-new objects leave originalCode, fileName and location empty.
 - Never modify SAP standard objects; prefer enhancements, BAdIs, implicit enhancement points or custom objects.
 - Write performant ABAP (no SELECT in LOOP, use FOR ALL ENTRIES / JOINs with checks, proper authority checks).
 - Code must be syntactically valid ABAP for the stated release and wrapped in the team's change tag format.
@@ -44,7 +48,7 @@ Title: ${t.title || "(not given)"}
 SAP module (user-supplied, may be empty): ${t.module || "(not given)"}
 Country: ${t.country || "(not given)"}
 FSD version being implemented: ${t.fsdVersion || "(not given)"}
-Change ID for this change: ${t.changeId || "(not given)"}${t.changeId ? ` — tag every new or changed line with it, following the program's existing tagging style (e.g. trailing "${t.changeId}+ on added lines and "${t.changeId}- on removed/commented lines) and the team's change tag format. Use ${t.changeId} for {TAG}.` : ""}
+Change ID for this change: ${t.changeId || "(not given)"}${t.changeId ? ` — tag every new or changed line with it, following the program's existing tagging style (e.g. trailing "${t.changeId}+ on added lines and "${t.changeId}- on removed/commented lines) and the team's change tag format. Use ${t.changeId} for {TAG}.` : ' — use the placeholder CXXX for {TAG} and in tags; do not ask about the change ID.'}
 
 Ticket description:
 """

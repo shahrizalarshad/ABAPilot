@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { DeepPartial } from "ai";
 import { ChevronDown, FileDown, FileText, Loader2 } from "lucide-react";
 import type { ExportMeta } from "@/lib/docx-export";
-import { Badge, Card, CodeBlock, CopyButton, Prose } from "@/components/ui";
+import { Badge, Card, CopyButton, Prose } from "@/components/ui";
+import { CodeChange } from "@/components/code-change";
+import { hasRealLineNumbers, indexSource } from "@/lib/code-diff";
 import { analysisToMarkdown } from "@/lib/markdown";
 import type { Analysis } from "@/lib/schema";
 
@@ -17,6 +19,8 @@ type Props = {
   actions?: ReactNode;
   /** Ticket context for the Word export header. */
   exportMeta?: ExportMeta;
+  /** The uploaded program, to check each change's original lines against. */
+  sourceCode?: string;
 };
 
 const sentence = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -29,15 +33,25 @@ export function AnalysisView({
   isLoading,
   actions,
   exportMeta,
+  sourceCode,
 }: Props) {
-  const md = analysisToMarkdown(a, ticketId, title);
+  const source = useMemo(
+    () => (sourceCode?.trim() ? indexSource(sourceCode) : null),
+    [sourceCode],
+  );
+  const exactLines = !!sourceCode && hasRealLineNumbers(sourceCode);
+  const md = analysisToMarkdown(a, ticketId, title, { source, exactLines });
   const [exporting, setExporting] = useState(false);
 
   const exportWord = async () => {
     setExporting(true);
     try {
       const { downloadTechSpec } = await import("@/lib/docx-export");
-      await downloadTechSpec(a, { ticketId, title, ...exportMeta });
+      await downloadTechSpec(
+        a,
+        { ticketId, title, ...exportMeta },
+        { source, exactLines },
+      );
     } finally {
       setExporting(false);
     }
@@ -170,14 +184,14 @@ export function AnalysisView({
       )}
 
       {a.codeChanges?.map((c, i) => (
-        <Card
+        <CodeChange
           key={i}
-          title={`Code · ${c?.objectName ?? ""}`}
-          actions={<CopyButton text={c?.abapCode ?? ""} label="Copy ABAP" />}
-        >
-          {c?.description && <p className="mb-3 text-muted">{c.description}</p>}
-          <CodeBlock code={c?.abapCode} changeId={exportMeta?.changeId} />
-        </Card>
+          c={c}
+          source={source}
+          exactLines={exactLines}
+          changeId={exportMeta?.changeId}
+          isLoading={isLoading}
+        />
       ))}
 
       {a.testCases && a.testCases.length > 0 && (

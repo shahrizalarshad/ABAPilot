@@ -60,6 +60,7 @@ async function AnalysisDetail(props: PageProps<"/history/[id]">) {
           ticketId={row.ticketId}
           title={row.title}
           actions={<DeleteButton id={row.id} />}
+          sourceCode={row.code ?? undefined}
           exportMeta={{
             module: row.module,
             changeId: row.changeId,
