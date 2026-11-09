@@ -34,7 +34,7 @@ const outputSchema = z.object({
   description: z
     .string()
     .describe(
-      "What is requested and why, as the requester would describe it: 3-8 short bullet points ('- '), expected behaviour, and anything explicitly out of scope. Plain text.",
+      "What is requested and why, as the requester would describe it: 3-8 short bullet points, each on its own line starting with '- ' (separate them with a newline), expected behaviour, and anything explicitly out of scope. Plain text.",
     ),
 });
 
