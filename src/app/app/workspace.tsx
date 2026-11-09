@@ -28,6 +28,9 @@ function errorMessage(error: Error): string {
     const parsed = JSON.parse(error.message);
     if (typeof parsed?.error === "string") return parsed.error;
   } catch {}
+  // Vercel's own error when the function runs past maxDuration.
+  if (/FUNCTION_INVOCATION_TIMEOUT|504|timed? ?out/i.test(error.message))
+    return "The analysis took too long and was stopped. Try again, select fewer images, or use Compact code on a large program.";
   return error.message || "Something went wrong.";
 }
 
