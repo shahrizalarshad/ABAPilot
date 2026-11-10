@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+export const MAX_SPEC_CHARS = 300_000;
+/** ~190k tokens of compacted ABAP. The request must also stay under Vercel's 4.5 MB body limit. */
+export const MAX_CODE_CHARS = 600_000;
+
 /** What the user submits from the workspace. */
 export const ticketInputSchema = z.object({
   ticketId: z.string().max(100).default(""),
@@ -17,13 +21,16 @@ export const ticketInputSchema = z.object({
     .max(30_000),
   code: z
     .string()
-    .max(200_000, "The code is too long (max 200,000 characters).")
+    .max(
+      MAX_CODE_CHARS,
+      `The code is too long (max ${MAX_CODE_CHARS.toLocaleString("en")} characters). Remove includes this change doesn't touch.`,
+    )
     .default(""),
   /** Functional specification (FSD) text, extracted in the browser from a .docx. */
   spec: z
     .string()
     .max(
-      300_000,
+      MAX_SPEC_CHARS,
       "The FSD is too long (max 300,000 characters). Delete old version history you don't need.",
     )
     .default(""),
@@ -54,8 +61,6 @@ export const ticketInputSchema = z.object({
 });
 
 /** Client-side limits, kept in sync with the schema above. */
-export const MAX_SPEC_CHARS = 300_000;
-export const MAX_CODE_CHARS = 200_000;
 
 export type TicketInput = z.infer<typeof ticketInputSchema>;
 
@@ -122,7 +127,7 @@ export const analysisSchema = z.object({
       originalCode: z
         .string()
         .describe(
-          "The exact lines of the uploaded code that this change replaces, copied verbatim and in order (no edits, no \"...\", no skipped lines). Usually 3-40 lines around the change. Empty string for a new object (new FORM, include, class).",
+          'The exact lines of the uploaded code that this change replaces, copied verbatim and in order (no edits, no "...", no skipped lines). Usually 3-40 lines around the change. Empty string for a new object (new FORM, include, class).',
         ),
       abapCode: z
         .string()
