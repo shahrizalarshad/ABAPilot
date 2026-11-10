@@ -102,3 +102,30 @@ export function missingIncludes(code: string, fileNames: string[]): string[] {
   }
   return [...found];
 }
+
+const FILE_SPLIT = /^\*&---- File: (.+?) ----\*$/gm;
+
+/** Characters per uploaded file, from the "*&---- File: … ----*" markers. */
+export function fileSizes(code: string): Map<string, number> {
+  const sizes = new Map<string, number>();
+  const marks = [...code.matchAll(FILE_SPLIT)];
+  marks.forEach((m, i) => {
+    const end = i + 1 < marks.length ? marks[i + 1].index : code.length;
+    sizes.set(m[1], (sizes.get(m[1]) ?? 0) + (end - m.index));
+  });
+  return sizes;
+}
+
+/** Remove one uploaded file's section (marker up to the next marker). */
+export function removeFileSection(code: string, name: string): string {
+  const marks = [...code.matchAll(FILE_SPLIT)];
+  let out = "";
+  let last = 0;
+  marks.forEach((m, i) => {
+    if (m[1] !== name) return;
+    const end = i + 1 < marks.length ? marks[i + 1].index : code.length;
+    out += code.slice(last, m.index);
+    last = end;
+  });
+  return (out + code.slice(last)).replace(/\n{3,}/g, "\n\n").trim();
+}

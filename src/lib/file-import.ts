@@ -237,7 +237,11 @@ async function makeThumb(src: string): Promise<string | "tiny" | null> {
  */
 export async function encodeImages(
   images: SpecImage[],
+  /** Characters of FSD + code text sent with the images. */
+  textChars = 0,
 ): Promise<EncodedImage[]> {
+  // Vercel rejects request bodies over 4.5 MB. JSON escaping adds ~15% to text.
+  const budget = Math.min(MAX_IMAGE_CHARS, 4_100_000 - textChars * 1.15);
   for (const [edge, quality] of [
     [MAX_EDGE, 0.85],
     [1280, 0.75],
@@ -257,10 +261,12 @@ export async function encodeImages(
         section: img.section,
       });
     }
-    if (total <= MAX_IMAGE_CHARS) return out;
+    if (total <= budget) return out;
   }
   throw new ImportError(
-    "The selected images are too large to send together. Select fewer images.",
+    textChars > 400_000
+      ? "The program is large, so there is less room for images. Select fewer images."
+      : "The selected images are too large to send together. Select fewer images.",
   );
 }
 

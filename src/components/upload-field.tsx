@@ -12,6 +12,10 @@ type Props = {
   files: string[];
   onFiles: (files: File[]) => Promise<void>;
   onClear: () => void;
+  /** Characters per file, shown on its chip. */
+  sizes?: Map<string, number>;
+  /** Remove one file (shows an × on each chip). */
+  onRemove?: (name: string) => void;
   /** The editable text area showing the extracted content. */
   children: ReactNode;
 };
@@ -25,6 +29,8 @@ export function UploadField({
   files,
   onFiles,
   onClear,
+  sizes,
+  onRemove,
   children,
 }: Props) {
   const input = useRef<HTMLInputElement>(null);
@@ -79,10 +85,25 @@ export function UploadField({
           {files.map((f, i) => (
             <span
               key={`${f}-${i}`}
-              className="max-w-full truncate rounded bg-spruce-soft px-2 py-0.5 font-mono text-xs text-spruce"
+              className="inline-flex max-w-full items-center gap-1 rounded bg-spruce-soft py-0.5 pr-1 pl-2 font-mono text-xs text-spruce"
               title={f}
             >
-              {f}
+              <span className="truncate">{f}</span>
+              {sizes?.get(f) != null && (
+                <span className="text-muted tabular-nums">
+                  {Math.round((sizes.get(f) ?? 0) / 1000)}k
+                </span>
+              )}
+              {onRemove && (
+                <button
+                  type="button"
+                  onClick={() => onRemove(f)}
+                  aria-label={`Remove ${f}`}
+                  className="rounded p-0.5 text-muted hover:text-markup"
+                >
+                  <X className="h-3 w-3" />
+                </button>
+              )}
             </span>
           ))}
           <button

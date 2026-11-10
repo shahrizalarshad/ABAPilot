@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useObject } from "@ai-sdk/react";
 import { AlertTriangle, Check, Loader2, Sparkles, Square } from "lucide-react";
@@ -17,7 +17,12 @@ import {
   type SpecImage,
 } from "@/lib/file-import";
 import type { EmbeddedObject } from "@/lib/docx-objects";
-import { compactAbap, missingIncludes } from "@/lib/abap-compact";
+import {
+  compactAbap,
+  fileSizes,
+  missingIncludes,
+  removeFileSection,
+} from "@/lib/abap-compact";
 import { AnalysisView } from "@/components/analysis-view";
 import { MAX_CODE_CHARS, MAX_SPEC_CHARS, analysisSchema } from "@/lib/schema";
 import { loadApiKey } from "@/lib/browser-storage";
@@ -117,6 +122,7 @@ export function Workspace({
   });
 
   const missing = missingIncludes(code, codeFiles);
+  const codeSizes = useMemo(() => fileSizes(code), [code]);
   const loadExample = () => {
     setTicketId(EXAMPLE.ticketId);
     setTitle(EXAMPLE.title);
@@ -243,7 +249,7 @@ export function Workspace({
     if (chosen.length) {
       setPreparing(true);
       try {
-        images = await encodeImages(chosen);
+        images = await encodeImages(chosen, spec.length + code.length);
       } catch (e) {
         setPrepError(
           e instanceof Error ? e.message : "Couldn't prepare the images.",
@@ -397,6 +403,14 @@ export function Workspace({
             setCode("");
             setCodeFiles([]);
             setCodeBeforeCompact(null);
+          }}
+          sizes={codeSizes}
+          onRemove={(name) => {
+            setCode((c) => removeFileSection(c, name));
+            setCodeBeforeCompact((c) =>
+              c == null ? null : removeFileSection(c, name),
+            );
+            setCodeFiles((prev) => prev.filter((f) => f !== name));
           }}
         >
           <textarea
@@ -569,7 +583,15 @@ export function Workspace({
                   / {MAX_CODE_CHARS.toLocaleString()} code chars).{" "}
                   {code.length > MAX_CODE_CHARS && codeBeforeCompact == null
                     ? "Click Compact code to remove comments. "
-                    : "Remove old version history or unrelated code. "}
+                    : code.length > MAX_CODE_CHARS && codeSizes.size > 1
+                      ? `Remove includes this change doesn't touch (× on the file). Largest: ${[
+                          ...codeSizes,
+                        ]
+                          .sort((x, y) => y[1] - x[1])
+                          .slice(0, 2)
+                          .map(([n, c]) => `${n} ${Math.round(c / 1000)}k`)
+                          .join(", ")}. `
+                      : "Remove old version history or unrelated code. "}
                 </>
               )}
               {spec.length > 0 && (
