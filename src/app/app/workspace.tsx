@@ -34,6 +34,12 @@ function errorMessage(error: Error): string {
   return error.message || "Something went wrong.";
 }
 
+/** "Intro. - First point. - Second point." on one line → one bullet per line. */
+function bulletLines(text: string): string {
+  if (text.includes("\n")) return text;
+  return text.replace(/\s+-\s+(?=[A-Z0-9(`'"])/g, "\n- ").trim();
+}
+
 const EXAMPLE = {
   ticketId: "INC-20431",
   title: "Sales order report shows wrong net value for orders with free goods",
@@ -216,7 +222,7 @@ export function Workspace({
         ai.title = "ai";
       }
       if (canFill("description") && data.description) {
-        setDescription(data.description);
+        setDescription(bulletLines(data.description));
         ai.description = "ai";
       }
       setAutoFilled((a) => ({ ...a, ...ai }));
@@ -270,7 +276,7 @@ export function Workspace({
   };
 
   return (
-    <main className="mx-auto grid max-w-7xl gap-6 px-4 py-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
+    <main className="mx-auto grid max-w-7xl grid-cols-[minmax(0,1fr)] gap-6 px-4 py-6 lg:grid-cols-[minmax(0,420px)_minmax(0,1fr)]">
       {/* ---------- Input ---------- */}
       <form
         className="space-y-4"
@@ -279,9 +285,20 @@ export function Workspace({
           run();
         }}
       >
-        <h1 className="font-display text-[26px] leading-tight font-bold">
-          New ticket
-        </h1>
+        <div className="flex items-baseline justify-between gap-3">
+          <h1 className="font-display text-[26px] leading-tight font-bold">
+            New ticket
+          </h1>
+          {!a && !isLoading && (
+            <button
+              type="button"
+              onClick={loadExample}
+              className="text-xs text-spruce hover:underline lg:hidden"
+            >
+              Load example
+            </button>
+          )}
+        </div>
         <Step
           n={1}
           title="Start with the FSD"
@@ -385,6 +402,7 @@ export function Workspace({
           <textarea
             aria-label="ABAP code"
             className={`${inputCls} min-h-40 font-mono text-xs`}
+            wrap="off"
             value={code}
             onChange={(e) => setCode(e.target.value)}
             spellCheck={false}
@@ -616,7 +634,7 @@ export function Workspace({
         )}
 
         {!a && !isLoading && !error && (
-          <div className="rounded-lg border border-dashed border-line-strong p-6 text-sm">
+          <div className="hidden rounded-lg border border-dashed border-line-strong p-6 text-sm lg:block">
             <p className="font-medium text-ink">What you&apos;ll get</p>
             <ul className="mt-3 grid gap-2 text-muted sm:grid-cols-2">
               {[
@@ -728,8 +746,8 @@ function SpecImages({
       {images.length > 0 && (
         <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
           <span className={over ? "font-medium text-markup" : "text-muted"}>
-            {selected.size} of {images.length} images selected (max {MAX_IMAGES}
-            ). Pick the screenshots for the change you&apos;re working on.
+            {selected.size} of {images.length} images selected
+            {over ? ` (max ${MAX_IMAGES})` : ""}
           </span>
           {selected.size > 0 && (
             <button
@@ -742,6 +760,10 @@ function SpecImages({
           )}
         </div>
       )}
+      <p className="text-xs text-muted">
+        Pick the screenshots for the change you&apos;re working on; the latest
+        version is selected for you.
+      </p>
       <div className="max-h-96 space-y-3 overflow-y-auto pr-1">
         {groups.map((g) => {
           const labels = g.items.map((i) => i.label);

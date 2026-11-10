@@ -79,7 +79,8 @@ export function UploadField({
           {files.map((f, i) => (
             <span
               key={`${f}-${i}`}
-              className="rounded bg-spruce-soft px-2 py-0.5 font-mono text-xs text-spruce"
+              className="max-w-full truncate rounded bg-spruce-soft px-2 py-0.5 font-mono text-xs text-spruce"
+              title={f}
             >
               {f}
             </span>
@@ -116,7 +117,10 @@ export function UploadField({
       {error ? (
         <span className="block text-xs text-markup">{error}</span>
       ) : (
-        hint && <span className="block text-xs text-muted">{hint}</span>
+        hint &&
+        files.length === 0 && (
+          <span className="block text-xs text-muted">{hint}</span>
+        )
       )}
     </div>
   );
